@@ -1,4 +1,4 @@
-import { authFetch, clearTokens, getRefreshToken, setTokens } from "./client.js";
+import { apiUrl, authFetch, clearTokens, getRefreshToken, setTokens } from "./client.js";
 
 const API = "/api/auth";
 
@@ -9,7 +9,7 @@ async function parseOrThrow(res, fallback) {
 }
 
 export async function signup(name, email, password, confirmPassword) {
-  const res = await fetch(`${API}/signup`, {
+  const res = await fetch(apiUrl(`${API}/signup`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, email, password, confirmPassword }),
@@ -20,7 +20,7 @@ export async function signup(name, email, password, confirmPassword) {
 }
 
 export async function login(email, password) {
-  const res = await fetch(`${API}/login`, {
+  const res = await fetch(apiUrl(`${API}/login`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
@@ -32,7 +32,7 @@ export async function login(email, password) {
 
 export async function refreshAccessToken() {
   const refreshToken = getRefreshToken();
-  const res = await fetch(`${API}/refresh-token`, {
+  const res = await fetch(apiUrl(`${API}/refresh-token`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ refreshToken }),
@@ -44,7 +44,7 @@ export async function refreshAccessToken() {
 
 export async function logout() {
   const refreshToken = getRefreshToken();
-  await fetch(`${API}/logout`, {
+  await fetch(apiUrl(`${API}/logout`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ refreshToken }),
@@ -80,7 +80,7 @@ export async function getSessions() {
 }
 
 export async function forgotPassword(email) {
-  const res = await fetch(`${API}/forgot-password`, {
+  const res = await fetch(apiUrl(`${API}/forgot-password`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email }),
@@ -89,7 +89,7 @@ export async function forgotPassword(email) {
 }
 
 export async function resetPassword(token, password) {
-  const res = await fetch(`${API}/reset-password`, {
+  const res = await fetch(apiUrl(`${API}/reset-password`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ token, password }),

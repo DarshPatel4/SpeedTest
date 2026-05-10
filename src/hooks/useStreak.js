@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PARAGRAPHS } from "../data/paragraphs.js";
+import { apiUrl } from "../api/client.js";
 
 const KEY = "typeflow-streak-v1";
 const DAILY_BEST_KEY = "typeflow-daily-best-v1";
@@ -77,7 +78,7 @@ export function useStreak() {
 
   useEffect(() => {
     let active = true;
-    fetch("/api/daily-challenge")
+    fetch(apiUrl("/api/daily-challenge"))
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error("No challenge"))))
       .then((data) => {
         if (!active) return;

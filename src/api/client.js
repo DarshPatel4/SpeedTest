@@ -1,6 +1,14 @@
 const ACCESS_KEY = "typeflow-access-token";
 const REFRESH_KEY = "typeflow-refresh-token";
 const EXP_KEY = "typeflow-access-exp";
+const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.DEV ? "" : "https://speedtest-76ft.onrender.com")
+).replace(/\/$/, "");
+
+export function apiUrl(path) {
+  return API_BASE_URL ? `${API_BASE_URL}${path}` : path;
+}
 
 export function getAccessToken() {
   return localStorage.getItem(ACCESS_KEY) || "";
@@ -29,7 +37,7 @@ export function clearTokens() {
 async function refreshAccessToken() {
   const refreshToken = getRefreshToken();
   if (!refreshToken) return null;
-  const res = await fetch("/api/auth/refresh-token", {
+  const res = await fetch(apiUrl("/api/auth/refresh-token"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ refreshToken }),
@@ -48,7 +56,7 @@ export async function authFetch(url, options = {}) {
   const token = getAccessToken();
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
-  let res = await fetch(url, { ...options, headers });
+  let res = await fetch(apiUrl(url), { ...options, headers });
   if (res.status !== 401) return res;
 
   const renewed = await refreshAccessToken();
@@ -56,6 +64,6 @@ export async function authFetch(url, options = {}) {
 
   const retryHeaders = new Headers(options.headers || {});
   retryHeaders.set("Authorization", `Bearer ${renewed}`);
-  res = await fetch(url, { ...options, headers: retryHeaders });
+  res = await fetch(apiUrl(url), { ...options, headers: retryHeaders });
   return res;
 }
