@@ -1,13 +1,52 @@
 const ACCESS_KEY = "typeflow-access-token";
 const REFRESH_KEY = "typeflow-refresh-token";
 const EXP_KEY = "typeflow-access-exp";
-const API_BASE_URL = (
-  import.meta.env.VITE_API_BASE_URL ||
-  (import.meta.env.DEV ? "" : "https://speedtest-76ft.onrender.com")
-).replace(/\/$/, "");
+
+/** Backend origin on Render (no trailing slash). */
+const DEFAULT_PROD_API_ORIGIN = "https://speedtest-76ft.onrender.com";
+
+function trimTrailingSlash(s) {
+  return s.replace(/\/$/, "");
+}
+
+function normalizeApiOrigin(url) {
+  if (url == null || typeof url !== "string") return "";
+  const t = url.trim();
+  return t ? trimTrailingSlash(t) : "";
+}
+
+function resolveApiBaseUrl() {
+  const fromEnv = normalizeApiOrigin(
+    import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL
+  );
+
+  // Local `vite` dev server: use empty origin so `/api` hits the Vite proxy unless overridden.
+  if (!import.meta.env.PROD) {
+    return fromEnv;
+  }
+
+  let base = fromEnv || DEFAULT_PROD_API_ORIGIN;
+
+  if (typeof window !== "undefined") {
+    try {
+      const resolved = base.includes("://") ? base : `https://${base}`;
+      if (new URL(resolved).origin === window.location.origin) {
+        base = DEFAULT_PROD_API_ORIGIN;
+      }
+    } catch {
+      base = DEFAULT_PROD_API_ORIGIN;
+    }
+  }
+
+  return base;
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 export function apiUrl(path) {
-  return API_BASE_URL ? `${API_BASE_URL}${path}` : path;
+  if (!API_BASE_URL) return path;
+  const p = path.startsWith("/") ? path : `/${path}`;
+  return `${API_BASE_URL}${p}`;
 }
 
 export function getAccessToken() {
