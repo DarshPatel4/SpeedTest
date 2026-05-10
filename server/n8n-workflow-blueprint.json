@@ -1,0 +1,434 @@
+[
+  {
+    "name": "Typeflow Automation Orchestrator",
+    "nodes": [
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "cronExpression",
+                "expression": "0 0 * * *"
+              }
+            ]
+          }
+        },
+        "id": "cron_daily_challenge",
+        "name": "Cron Daily Challenge",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          -980,
+          -300
+        ]
+      },
+      {
+        "parameters": {
+          "keepOnlySet": true,
+          "values": {
+            "string": [
+              {
+                "name": "dateKey",
+                "value": "={{ $now.toISODate() }}"
+              },
+              {
+                "name": "text",
+                "value": "={{ [\n+  \"Discipline is choosing between what you want now and what you want most.\",\n+  \"Consistency beats intensity when the goal is long-term mastery.\",\n+  \"Small improvements repeated daily become extraordinary results.\",\n+  \"Speed comes from rhythm, rhythm comes from focused repetition.\",\n+  \"Accuracy first, pace second, confidence follows naturally.\"\n+][Math.floor(Math.random() * 5)] }}"
+              },
+              {
+                "name": "source",
+                "value": "n8n-cron"
+              }
+            ]
+          }
+        },
+        "id": "set_daily_payload",
+        "name": "Build Daily Challenge Payload",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          -740,
+          -300
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "={{ $env.BACKEND_BASE_URL + '/api/automation/daily-challenge' }}",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "x-n8n-secret",
+                "value": "={{ $env.N8N_INTERNAL_SECRET }}"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ $json }}"
+        },
+        "id": "http_upsert_daily",
+        "name": "POST Daily Challenge To Backend",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          -500,
+          -300
+        ]
+      },
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "cronExpression",
+                "expression": "0 6 * * 1"
+              }
+            ]
+          }
+        },
+        "id": "cron_weekly_report",
+        "name": "Cron Weekly Report",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          -980,
+          40
+        ]
+      },
+      {
+        "parameters": {
+          "method": "GET",
+          "url": "={{ $env.BACKEND_BASE_URL + '/api/automation/reports/weekly?userId=' + $env.REPORT_USER_ID + '&days=7' }}",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "x-n8n-secret",
+                "value": "={{ $env.N8N_INTERNAL_SECRET }}"
+              }
+            ]
+          }
+        },
+        "id": "http_get_weekly_report",
+        "name": "GET Weekly Performance Report",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          -740,
+          40
+        ]
+      },
+      {
+        "parameters": {
+          "fromEmail": "={{ $env.SMTP_FROM_EMAIL }}",
+          "toEmail": "={{ $json.report.user.email || $env.REPORT_TO_EMAIL }}",
+          "subject": "Your Weekly Typing Performance Report",
+          "emailType": "text",
+          "message": "={{ 'Hi ' + ($json.report.user.name || 'there') + ',\\n\\nHere is your weekly Typing Performance summary:\\n- Tests: ' + $json.report.performance.testsCount + '\\n- Avg WPM: ' + $json.report.performance.avgWpm + '\\n- Avg Accuracy: ' + $json.report.performance.avgAccuracy + '%\\n- Best WPM: ' + $json.report.performance.bestWpm + '\\n- XP: ' + $json.report.user.xp + ' (Level ' + $json.report.user.level + ')\\n\\nKeep practicing daily!\\n\\n- Typeflow Bot' }}"
+        },
+        "id": "email_weekly_report",
+        "name": "Send Weekly Email",
+        "type": "n8n-nodes-base.emailSend",
+        "typeVersion": 2.1,
+        "position": [
+          -500,
+          40
+        ]
+      },
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "cronExpression",
+                "expression": "30 0 * * *"
+              }
+            ]
+          }
+        },
+        "id": "cron_daily_leaderboard",
+        "name": "Cron Daily Leaderboard",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          -980,
+          360
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "={{ $env.BACKEND_BASE_URL + '/api/automation/leaderboard/recompute' }}",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "x-n8n-secret",
+                "value": "={{ $env.N8N_INTERNAL_SECRET }}"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ { dateKey: $now.toISODate(), topN: 100, source: 'n8n-cron' } }}"
+        },
+        "id": "http_recompute_leaderboard",
+        "name": "POST Recompute Leaderboard",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          -740,
+          360
+        ]
+      },
+      {
+        "parameters": {
+          "fromEmail": "={{ $env.SMTP_FROM_EMAIL }}",
+          "toEmail": "={{ $env.ADMIN_EMAIL }}",
+          "subject": "Typeflow Leaderboard Refreshed",
+          "emailType": "text",
+          "message": "={{ 'Leaderboard recomputed for ' + $json.dateKey + '. Ranked users: ' + $json.totalRankedUsers }}"
+        },
+        "id": "email_leaderboard_status",
+        "name": "Send Leaderboard Status Email",
+        "type": "n8n-nodes-base.emailSend",
+        "typeVersion": 2.1,
+        "position": [
+          -500,
+          360
+        ]
+      },
+      {
+        "parameters": {
+          "path": "typeflow/user-signup",
+          "httpMethod": "POST",
+          "responseMode": "onReceived"
+        },
+        "id": "webhook_user_signup",
+        "name": "Webhook User Signup",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          -980,
+          -620
+        ],
+        "webhookId": "typeflow-user-signup"
+      },
+      {
+        "parameters": {
+          "fromEmail": "={{ $env.SMTP_FROM_EMAIL }}",
+          "toEmail": "={{ $json.body.user.email }}",
+          "subject": "Welcome to Typeflow!",
+          "emailType": "text",
+          "message": "={{ 'Hi ' + ($json.body.user.name || 'there') + ',\\n\\nWelcome to Typeflow. Start your first test and begin building your streak today!\\n\\n- Typeflow Team' }}"
+        },
+        "id": "email_welcome",
+        "name": "Send Welcome Email",
+        "type": "n8n-nodes-base.emailSend",
+        "typeVersion": 2.1,
+        "position": [
+          -740,
+          -620
+        ]
+      },
+      {
+        "parameters": {
+          "path": "typeflow/test-complete",
+          "httpMethod": "POST",
+          "responseMode": "responseNode"
+        },
+        "id": "webhook_test_complete",
+        "name": "Webhook Test Complete",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          -980,
+          -980
+        ],
+        "webhookId": "typeflow-test-complete"
+      },
+      {
+        "parameters": {
+          "jsCode": "const test = $json.body?.test || {};\nconst accuracy = Number(test.accuracy || 0);\nconst wpm = Number(test.wpm || 0);\nconst streakBonus = accuracy >= 98 ? 25 : accuracy >= 95 ? 15 : 5;\nconst speedBonus = Math.max(0, Math.floor(wpm / 10));\nconst xpAwarded = 20 + streakBonus + speedBonus;\n\nreturn [{\n  json: {\n    userId: $json.body?.test?.userId,\n    xpAwarded,\n    reason: 'test-completion',\n    metadata: {\n      wpm,\n      accuracy,\n      difficulty: test.difficulty,\n      mode: test.mode,\n      testId: test.id,\n    },\n  },\n}];"
+        },
+        "id": "code_compute_xp",
+        "name": "Compute XP Reward",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -740,
+          -980
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "={{ $env.BACKEND_BASE_URL + '/api/automation/xp-reward' }}",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "x-n8n-secret",
+                "value": "={{ $env.N8N_INTERNAL_SECRET }}"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ $json }}"
+        },
+        "id": "http_post_xp_reward",
+        "name": "POST XP Reward To Backend",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          -500,
+          -980
+        ]
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ { ok: true, xpResult: $json } }}"
+        },
+        "id": "respond_test_complete",
+        "name": "Respond Test Complete Webhook",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.1,
+        "position": [
+          -260,
+          -980
+        ]
+      }
+    ],
+    "connections": {
+      "Cron Daily Challenge": {
+        "main": [
+          [
+            {
+              "node": "Build Daily Challenge Payload",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build Daily Challenge Payload": {
+        "main": [
+          [
+            {
+              "node": "POST Daily Challenge To Backend",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Cron Weekly Report": {
+        "main": [
+          [
+            {
+              "node": "GET Weekly Performance Report",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "GET Weekly Performance Report": {
+        "main": [
+          [
+            {
+              "node": "Send Weekly Email",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Cron Daily Leaderboard": {
+        "main": [
+          [
+            {
+              "node": "POST Recompute Leaderboard",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "POST Recompute Leaderboard": {
+        "main": [
+          [
+            {
+              "node": "Send Leaderboard Status Email",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Webhook User Signup": {
+        "main": [
+          [
+            {
+              "node": "Send Welcome Email",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Webhook Test Complete": {
+        "main": [
+          [
+            {
+              "node": "Compute XP Reward",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Compute XP Reward": {
+        "main": [
+          [
+            {
+              "node": "POST XP Reward To Backend",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "POST XP Reward To Backend": {
+        "main": [
+          [
+            {
+              "node": "Respond Test Complete Webhook",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1"
+    }
+  }
+]
