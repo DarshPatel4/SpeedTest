@@ -15,38 +15,74 @@ function normalizeApiOrigin(url) {
   return t ? trimTrailingSlash(t) : "";
 }
 
-function resolveApiBaseUrl() {
-  const fromEnv = normalizeApiOrigin(
+function readEnvApiOrigin() {
+  return normalizeApiOrigin(
     import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL
   );
-
-  // Local `vite` dev server: use empty origin so `/api` hits the Vite proxy unless overridden.
-  if (!import.meta.env.PROD) {
-    return fromEnv;
-  }
-
-  let base = fromEnv || DEFAULT_PROD_API_ORIGIN;
-
-  if (typeof window !== "undefined") {
-    try {
-      const resolved = base.includes("://") ? base : `https://${base}`;
-      if (new URL(resolved).origin === window.location.origin) {
-        base = DEFAULT_PROD_API_ORIGIN;
-      }
-    } catch {
-      base = DEFAULT_PROD_API_ORIGIN;
-    }
-  }
-
-  return base;
 }
 
-const API_BASE_URL = resolveApiBaseUrl();
+function isLocalDevHost(hostname) {
+  return (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "[::1]" ||
+    hostname === ""
+  );
+}
+
+/**
+ * Resolves at request time (not module load) so hosted deploys never accidentally
+ * use relative `/api` after a mis-tuned build. On localhost, empty means Vite proxy.
+ */
+function getEffectiveApiBaseUrl() {
+  const fromEnv = readEnvApiOrigin();
+
+  if (typeof window !== "undefined") {
+    const { hostname } = window.location;
+
+    if (isLocalDevHost(hostname)) {
+      if (fromEnv) {
+        try {
+          const resolved = fromEnv.includes("://") ? fromEnv : `https://${fromEnv}`;
+          if (new URL(resolved).origin === window.location.origin) {
+            return DEFAULT_PROD_API_ORIGIN;
+          }
+          return trimTrailingSlash(fromEnv);
+        } catch {
+          return DEFAULT_PROD_API_ORIGIN;
+        }
+      }
+      // `vite` dev: empty origin → Vite proxy. `vite preview` has no proxy → use default API.
+      return import.meta.env.DEV ? "" : DEFAULT_PROD_API_ORIGIN;
+    }
+
+    // Deployed (Vercel, custom domain, preview URL, etc.)
+    if (fromEnv) {
+      try {
+        const resolved = fromEnv.includes("://") ? fromEnv : `https://${fromEnv}`;
+        if (new URL(resolved).origin === window.location.origin) {
+          return DEFAULT_PROD_API_ORIGIN;
+        }
+        return trimTrailingSlash(fromEnv);
+      } catch {
+        return DEFAULT_PROD_API_ORIGIN;
+      }
+    }
+    return DEFAULT_PROD_API_ORIGIN;
+  }
+
+  // No `window` (SSR/tests): follow build mode.
+  if (import.meta.env.PROD) {
+    return fromEnv || DEFAULT_PROD_API_ORIGIN;
+  }
+  return fromEnv;
+}
 
 export function apiUrl(path) {
-  if (!API_BASE_URL) return path;
+  const base = getEffectiveApiBaseUrl();
+  if (!base) return path.startsWith("/") ? path : `/${path}`;
   const p = path.startsWith("/") ? path : `/${path}`;
-  return `${API_BASE_URL}${p}`;
+  return `${base}${p}`;
 }
 
 export function getAccessToken() {
