@@ -53,16 +53,15 @@ export function TypingBox({ sourceText, typed, phase }) {
   return (
     <motion.div
       layout
-      className="relative w-full max-w-4xl rounded-3xl border border-mist-200/90 bg-white/75 p-8 shadow-panel backdrop-blur-xl dark:border-white/10 dark:bg-ink-900/45"
+      className="relative w-full rounded-3xl border border-white/10 bg-white/5 p-6 shadow-panel dark:bg-ink-900/35"
       transition={{ layout: { type: "spring", stiffness: 320, damping: 32 } }}
     >
-      <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-accent/40 to-transparent" />
-      <p className="mb-4 text-center text-[11px] font-medium uppercase tracking-[0.35em] text-mist-500 dark:text-mist-400">
+      <p className="mb-3 text-center text-[10px] font-medium uppercase tracking-[0.28em] text-mist-500 dark:text-mist-400">
         Type the passage
       </p>
       <div
         ref={wrapRef}
-        className="min-h-[9rem] max-h-[min(24rem,55vh)] overflow-y-auto scroll-smooth text-left font-mono text-[1.35rem] leading-[1.85] tracking-wide sm:text-[1.45rem]"
+        className="min-h-[7.5rem] text-left font-mono text-[1.2rem] leading-[1.9] tracking-wide sm:text-[1.35rem]"
         style={{ wordBreak: "break-word" }}
       >
         {windowStart > 0 ? (
@@ -101,7 +100,7 @@ export function TypingBox({ sourceText, typed, phase }) {
           </span>
         ) : null}
       </div>
-      <p className="mt-6 text-center text-xs text-mist-500 dark:text-mist-400">
+      <p className="mt-4 text-center text-xs text-mist-500 dark:text-mist-400">
         <kbd className="rounded-md border border-mist-200 bg-mist-100/80 px-1.5 py-0.5 font-mono text-[10px] text-ink-800 dark:border-white/10 dark:bg-white/5 dark:text-mist-200">
           Tab
         </kbd>{" "}

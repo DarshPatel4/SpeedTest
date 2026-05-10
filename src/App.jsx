@@ -176,11 +176,28 @@ export default function App() {
       tabIndex={-1}
       className="relative min-h-screen overflow-x-hidden text-ink-900 outline-none dark:text-mist-100"
     >
+      <motion.div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 z-0 bg-black"
+        animate={{ opacity: focusMode ? 0.22 : 0 }}
+        transition={{ duration: 0.25 }}
+      />
       <main className="relative z-10 w-full pb-12 pt-6">
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[280px_minmax(0,1fr)_320px]">
-          {!focusMode ? (
-            <aside className="hidden xl:block">
-              <div className="sticky top-24 space-y-4">
+        <motion.div
+          className="grid grid-cols-1 gap-7"
+          animate={{
+            gridTemplateColumns:
+              focusMode ? "0px minmax(0,1fr) 0px" : "260px minmax(0,1fr) 300px",
+          }}
+          transition={{ type: "spring", stiffness: 220, damping: 30 }}
+        >
+          <motion.aside
+            className="hidden xl:block overflow-hidden"
+            animate={{ opacity: focusMode ? 0 : 1 }}
+            transition={{ duration: 0.22 }}
+            aria-hidden={focusMode}
+          >
+            <div className="sticky top-24 space-y-3">
                 <DailyChallenge
                   challengeText={dailyChallenge.text}
                   dateKey={dailyChallenge.dateKey}
@@ -188,11 +205,11 @@ export default function App() {
                   onUseChallenge={onDailyChallenge}
                   disabled={controlsLocked}
                 />
-                <div className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-md">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-mist-400">
                     Typing settings
                   </p>
-                  <div className="mt-3 space-y-4">
+                  <div className="mt-2.5 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">{durationButtons}</div>
                     <ModeSelector
                       value={mode}
@@ -206,68 +223,81 @@ export default function App() {
                     />
                   </div>
                 </div>
-                <div className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-md">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-mist-400">
-                    Session toggles
-                  </p>
-                  <div className="mt-3 grid grid-cols-1 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
-                      className="rounded-xl border border-white/10 bg-ink-925/70 px-3 py-2 text-left text-xs font-semibold text-mist-100 transition hover:bg-ink-900"
-                    >
-                      Theme: {theme === "dark" ? "Dark" : "Light"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSound((s) => !s)}
-                      className="rounded-xl border border-white/10 bg-ink-925/70 px-3 py-2 text-left text-xs font-semibold text-mist-100 transition hover:bg-ink-900"
-                    >
-                      Sound: {sound ? "On" : "Off"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFocusMode((v) => !v)}
-                      className="rounded-xl border border-white/10 bg-ink-925/70 px-3 py-2 text-left text-xs font-semibold text-mist-100 transition hover:bg-ink-900"
-                    >
-                      {focusMode ? "Exit focus mode" : "Enter focus mode"}
-                    </button>
-                  </div>
-                </div>
                 <XPProgress
                   level={level}
                   totalXP={totalXP}
                   progressPct={progressInLevel}
                   xpForNextLevel={xpForNextLevel}
                 />
-                <div className="rounded-2xl border border-orange-500/20 bg-orange-950/20 px-4 py-3 text-xs font-semibold text-orange-100">
+                <div className="rounded-xl border border-orange-500/20 bg-orange-950/20 px-3 py-2 text-xs font-semibold text-orange-100">
                   🔥 {streak} day streak
                 </div>
-              </div>
-            </aside>
-          ) : null}
+            </div>
+          </motion.aside>
 
-          <section className="min-w-0 space-y-5">
-            <div className="space-y-2">
-              <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Calm, precise typing.</h1>
-              <p className="max-w-2xl text-sm text-mist-400">
+          <section className="min-w-0 space-y-4">
+            <div className="space-y-1.5">
+              <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Calm, precise typing.</h1>
+              <p className="max-w-2xl text-sm leading-relaxed text-mist-400">
                 Keep your eyes ahead, keep rhythm steady, and let the stats guide your next run.
               </p>
             </div>
 
-            <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-md">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5">
               <Timer
                 seconds={test.phase === "finished" ? 0 : test.timeLeft}
                 phase={test.phase}
                 totalSec={durationSec}
               />
-              <p className="text-right text-xs text-mist-400">WPM = (correct ÷ 5) ÷ minutes elapsed</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+                  className="rounded-lg border border-white/10 bg-ink-925/60 px-3 py-1.5 text-[11px] font-semibold text-mist-100 transition hover:bg-ink-900"
+                >
+                  {theme === "dark" ? "Light" : "Dark"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSound((s) => !s)}
+                  className="rounded-lg border border-white/10 bg-ink-925/60 px-3 py-1.5 text-[11px] font-semibold text-mist-100 transition hover:bg-ink-900"
+                >
+                  Sound {sound ? "on" : "off"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFocusMode((v) => !v)}
+                  className={`rounded-lg border px-3 py-1.5 text-[11px] font-semibold transition ${
+                    focusMode
+                      ? "border-accent/40 bg-accent/15 text-mist-50"
+                      : "border-white/10 bg-ink-925/60 text-mist-100 hover:bg-ink-900"
+                  }`}
+                >
+                  {focusMode ? "Exit focus" : "Focus mode"}
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+              <div className="flex flex-wrap items-center gap-2">{durationButtons}</div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:justify-items-end">
+                <ModeSelector
+                  value={mode}
+                  onChange={setMode}
+                  disabled={controlsLocked || !!customText.trim()}
+                />
+                <DifficultySelector
+                  value={difficulty}
+                  onChange={setDifficulty}
+                  disabled={controlsLocked || !!customText.trim()}
+                />
+              </div>
             </div>
 
             <motion.div
               key={mode}
               layout
-              className="w-full"
+              className={`w-full transition-all duration-300 ${focusMode ? "xl:mx-auto xl:max-w-[1100px]" : ""}`}
               initial={{ opacity: 0.9 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.2 }}
@@ -300,14 +330,14 @@ export default function App() {
                     value={customText}
                     onChange={(e) => setCustomText(e.target.value)}
                     placeholder="Optional: paste your own text, then click New passage."
-                    className="mt-2 w-full resize-none rounded-2xl border border-white/10 bg-ink-950/50 px-4 py-3 text-sm text-mist-100 outline-none transition placeholder:text-mist-500 focus:border-accent/50"
+                    className="mt-2 w-full resize-none rounded-xl border border-white/10 bg-ink-950/45 px-4 py-2.5 text-sm text-mist-100 outline-none transition placeholder:text-mist-500 focus:border-accent/50"
                   />
                 </div>
                 <button
                   type="button"
                   disabled={test.phase === "running"}
                   onClick={() => test.restart()}
-                  className="shrink-0 rounded-2xl border border-white/10 bg-ink-925/70 px-5 py-3 text-sm font-semibold text-mist-100 transition hover:bg-ink-900 disabled:opacity-50"
+                  className="shrink-0 rounded-xl border border-white/10 bg-ink-925/60 px-5 py-2.5 text-sm font-semibold text-mist-100 transition hover:bg-ink-900 disabled:opacity-50"
                 >
                   New passage
                 </button>
@@ -315,25 +345,29 @@ export default function App() {
             </section>
           </section>
 
-          {!focusMode ? (
-            <aside className="hidden xl:block">
-              <div className="sticky top-24 space-y-4">
-                <div className="grid grid-cols-2 gap-3">
+          <motion.aside
+            className="hidden xl:block overflow-hidden"
+            animate={{ opacity: focusMode ? 0 : 1 }}
+            transition={{ duration: 0.22 }}
+            aria-hidden={focusMode}
+          >
+            <div className="sticky top-24 space-y-3">
+                <div className="grid grid-cols-2 gap-2.5">
                   <StatTile label="WPM" value={test.wpm} />
                   <StatTile label="Accuracy" value={`${test.accuracy}%`} />
                   <StatTile label="CPM" value={test.cpm} />
                   <StatTile label="Errors" value={test.errors} />
                 </div>
-                <div className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-md">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
                   <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-mist-400">
                     Live pace
                   </p>
                   <LiveWpmGraph points={test.wpmSeries} />
                 </div>
-                <div className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-md">
-                  <p className="text-sm text-mist-300">{smartHint}</p>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+                  <p className="text-sm leading-relaxed text-mist-300">{smartHint}</p>
                 </div>
-                <div className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-md">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
                   <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-mist-400">
                     Weak keys
                   </p>
@@ -346,16 +380,15 @@ export default function App() {
                     <button
                       type="button"
                       onClick={onPracticeWeak}
-                      className="mt-3 w-full rounded-xl border border-white/10 bg-ink-925/70 px-3 py-2 text-xs font-semibold text-mist-100 transition hover:bg-ink-900"
+                      className="mt-3 w-full rounded-lg border border-white/10 bg-ink-925/60 px-3 py-2 text-xs font-semibold text-mist-100 transition hover:bg-ink-900"
                     >
                       Practice weak keys
                     </button>
                   ) : null}
                 </div>
-              </div>
-            </aside>
-          ) : null}
-        </div>
+            </div>
+          </motion.aside>
+        </motion.div>
       </main>
 
       <ResultModal
@@ -379,9 +412,9 @@ export default function App() {
 
 function StatTile({ label, value }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-center backdrop-blur-md">
+    <div className="rounded-xl border border-white/10 bg-white/[0.04] px-2.5 py-2.5 text-center">
       <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-mist-400">{label}</p>
-      <p className="mt-1 font-mono text-lg font-semibold tabular-nums text-mist-100">{value}</p>
+      <p className="mt-1 font-mono text-base font-semibold tabular-nums text-mist-100">{value}</p>
     </div>
   );
 }

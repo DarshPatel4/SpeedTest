@@ -12,7 +12,7 @@ export function ModeSelector({ value, onChange, disabled }) {
         Mode
       </p>
       <div
-        className="inline-flex rounded-2xl border border-mist-200/90 bg-mist-100/50 p-1 shadow-inner dark:border-white/10 dark:bg-ink-950/50"
+        className="grid w-full grid-cols-2 rounded-xl border border-mist-200/90 bg-mist-100/50 p-1 shadow-inner dark:border-white/10 dark:bg-ink-950/50"
         role="tablist"
         aria-label="Typing mode"
       >
@@ -26,7 +26,7 @@ export function ModeSelector({ value, onChange, disabled }) {
               aria-selected={active}
               disabled={disabled}
               onClick={() => onChange(m.id)}
-              className={`relative flex min-w-[6rem] flex-col items-center rounded-xl px-4 py-2 text-center transition ${
+              className={`relative flex min-w-0 flex-col items-center rounded-lg px-2 py-2 text-center transition ${
                 disabled ? "cursor-not-allowed opacity-45" : "hover:bg-white/60 dark:hover:bg-white/5"
               }`}
             >
@@ -38,20 +38,13 @@ export function ModeSelector({ value, onChange, disabled }) {
                 />
               ) : null}
               <span
-                className={`relative z-10 text-xs font-semibold ${
+                className={`relative z-10 text-[11px] font-semibold ${
                   active
                     ? "text-ink-900 dark:text-mist-50"
                     : "text-mist-600 dark:text-mist-400"
                 }`}
               >
                 {m.label}
-              </span>
-              <span
-                className={`relative z-10 mt-0.5 hidden text-[10px] font-medium sm:block ${
-                  active ? "text-mist-600 dark:text-mist-300" : "text-mist-400 dark:text-mist-600"
-                }`}
-              >
-                {m.hint}
               </span>
             </button>
           );

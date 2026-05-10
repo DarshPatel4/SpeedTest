@@ -62,7 +62,7 @@ export function CodeTypingBox({ sourceText, typed, phase, language }) {
   return (
     <motion.div
       layout
-      className="relative w-full max-w-4xl overflow-hidden rounded-3xl border border-mist-800/80 bg-[#0d1117] p-1 shadow-panel ring-1 ring-black/40 dark:ring-white/10"
+      className="relative w-full overflow-hidden rounded-3xl border border-white/10 bg-[#0d1117] p-1 shadow-panel ring-1 ring-black/30 dark:ring-white/10"
       transition={{ layout: { type: "spring", stiffness: 320, damping: 32 } }}
     >
       <div className="flex items-center justify-between rounded-t-[1.35rem] border-b border-white/5 bg-[#161b22] px-4 py-2">
@@ -76,12 +76,12 @@ export function CodeTypingBox({ sourceText, typed, phase, language }) {
         </span>
       </div>
       <div className="rounded-b-[1.35rem] bg-[#0d1117] p-6 pt-5">
-        <p className="mb-4 text-center text-[11px] font-medium uppercase tracking-[0.35em] text-mist-500">
+        <p className="mb-3 text-center text-[10px] font-medium uppercase tracking-[0.28em] text-mist-500">
           Type the snippet
         </p>
         <div
           ref={wrapRef}
-          className="min-h-[10rem] max-h-[min(26rem,58vh)] overflow-y-auto scroll-smooth whitespace-pre-wrap break-words font-mono text-[0.95rem] leading-relaxed sm:text-[1.05rem]"
+          className="min-h-[8rem] whitespace-pre-wrap break-words font-mono text-[0.95rem] leading-relaxed sm:text-[1.02rem]"
         >
           {windowStart > 0 ? (
             <span className="text-mist-600">··· </span>
@@ -137,7 +137,7 @@ export function CodeTypingBox({ sourceText, typed, phase, language }) {
             </span>
           ) : null}
         </div>
-        <p className="mt-5 text-center text-[11px] text-mist-500">
+        <p className="mt-4 text-center text-[11px] text-mist-500">
           <kbd className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-mist-300">
             Alt+R
           </kbd>{" "}
