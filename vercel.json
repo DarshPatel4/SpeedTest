@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://speedtest-76ft.onrender.com/api/:path*"
+    }
+  ]
+}
