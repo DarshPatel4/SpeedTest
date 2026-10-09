@@ -5,6 +5,7 @@ import mongoose from "mongoose";
 import authRouter from "./routes/auth.js";
 import scoreRouter from "./routes/scores.js";
 import automationRouter from "./routes/automation.js";
+import { isServerSupabaseConfigured } from "./lib/supabase.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -37,36 +38,51 @@ function isOriginAllowed(origin) {
   return fixed.includes(origin);
 }
 
-app.use(cors({
-  origin(origin, callback) {
-    if (isOriginAllowed(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  credentials: true
-}));
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (isOriginAllowed(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  })
+);
 
 app.use("/api/auth", authRouter);
 app.use("/api", scoreRouter);
 app.use("/api", automationRouter);
 
 app.get("/api/health", (_, res) => {
-  res.json({ ok: true });
+  res.json({
+    ok: true,
+    supabase: isServerSupabaseConfigured,
+    mongo: mongoose.connection.readyState === 1,
+    time: new Date().toISOString(),
+  });
 });
 
-const mongoUri = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/typeflow";
-
-mongoose
-  .connect(process.env.MONGO_URI || mongoUri)
-  .then(() => {
-    console.log("MongoDB Connected");
-    app.listen(PORT, () => {
-      console.log(`Server running on http://localhost:${PORT}`);
+// Non-blocking MongoDB connection attempt if configured and valid
+const mongoUri = process.env.MONGO_URI;
+if (mongoUri && !mongoUri.includes("cluster0.zrh6c.mongodb.net")) {
+  mongoose
+    .connect(mongoUri, { serverSelectionTimeoutMS: 4000 })
+    .then(() => {
+      console.log("✓ MongoDB Connected");
+    })
+    .catch((err) => {
+      console.warn("⚠️  MongoDB connection skipped / failed:", err.message);
     });
-  })
-  .catch((err) => {
-    console.error("DB Error:", err);
-    process.exit(1);
-  });
+} else {
+  if (isServerSupabaseConfigured) {
+    console.log("✓ Supabase configured as primary database");
+  } else {
+    console.log("ℹ️  Running in standalone mode (configure Supabase in .env for cloud sync)");
+  }
+}
+
+app.listen(PORT, () => {
+  console.log(`🚀 Typeflow server listening on http://localhost:${PORT}`);
+});

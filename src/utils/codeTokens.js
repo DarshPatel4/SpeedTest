@@ -4,6 +4,35 @@ import "prismjs/components/prism-python";
 import "prismjs/components/prism-markup";
 import "prismjs/components/prism-css";
 
+// PowerScript (PowerBuilder) grammar definition
+Prism.languages.powerscript = {
+  comment: [
+    {
+      pattern: /(^|[^\\])\/\*[\s\S]*?(?:\*\/|$)/,
+      lookbehind: true,
+      greedy: true,
+    },
+    {
+      pattern: /(^|[^\\:])\/\/.*/,
+      lookbehind: true,
+      greedy: true,
+    },
+  ],
+  string: {
+    pattern: /(["'])(?:\\(?:\r\n|[\s\S])|(?!\1)[^\\\r\n])*\1/,
+    greedy: true,
+  },
+  keyword:
+    /\b(?:IF|THEN|ELSE|ELSEIF|END IF|CHOOSE CASE|CASE|END CHOOSE|FOR|TO|STEP|NEXT|DO WHILE|DO UNTIL|LOOP|RETURN|EXIT|CONTINUE|TRY|CATCH|FINALLY|END TRY|THROW|SELECT|INSERT|UPDATE|DELETE|FROM|WHERE|CONNECT|DISCONNECT|COMMIT|ROLLBACK|USING|SQLCA|TRUE|FALSE|NULL|FUNCTION|SUBROUTINE|EVENT|GLOBAL|SHARED|LOCAL|CONSTANT|PUBLIC|PRIVATE|PROTECTED|READONLY|DYNAMIC|SUPER|THIS|PARENT)\b/i,
+  "class-name":
+    /\b(?:Long|Integer|String|Boolean|DateTime|Date|Time|Decimal|Double|Real|Byte|Blob|Any|LongLong|DataWindow|DataStore|Transaction|Window|CommandButton|SingleLineEdit|StaticText|NonVisualObject)\b/i,
+  function:
+    /\b(?:Retrieve|InsertRow|DeleteRow|Update|SetItem|GetItemString|GetItemNumber|GetItemDateTime|Reset|ScrollToRow|SetFilter|Filter|SetSort|Sort|RowCount|ModifiedCount|DeletedCount|MessageBox|TriggerEvent|PostEvent|Open|Close|OpenWithParm|CloseWithReturn|SetRedraw|Describe|Modify|SetTransObject|GetRow|AcceptText|Find|SetFocus|IsValid|IsNull)\b/i,
+  number: /\b\d+(?:\.\d+)?\b/,
+  operator: /<>|<=|>=|:=|=|<|>|\+|-|\*|\/|\^|\b(?:AND|OR|NOT)\b/i,
+  punctuation: /[{}\[\];(),.:]/,
+};
+
 function walk(node, out, parentType = "plain") {
   if (typeof node === "string") {
     for (const ch of node) out.push({ ch, type: parentType });
@@ -46,14 +75,14 @@ export function syntaxClass(type) {
     case "keyword":
     case "boolean":
     case "constant":
-      return "text-violet-300";
+      return "text-violet-400 font-semibold";
     case "string":
     case "char":
     case "attr-value":
       return "text-emerald-300";
     case "function":
     case "maybe-class-name":
-      return "text-sky-300";
+      return "text-sky-300 font-medium";
     case "number":
     case "property":
       return "text-amber-300";
@@ -68,7 +97,7 @@ export function syntaxClass(type) {
       return "text-slate-300";
     case "class-name":
     case "builtin":
-      return "text-cyan-300";
+      return "text-cyan-300 font-semibold";
     default:
       return "text-mist-200";
   }

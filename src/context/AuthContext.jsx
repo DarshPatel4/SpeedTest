@@ -11,6 +11,8 @@ import {
 } from "../api/auth.js";
 import { clearTokens, getAccessExpiry } from "../api/client.js";
 
+import { supabase, isSupabaseConfigured } from "../lib/supabase.js";
+
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
@@ -33,6 +35,22 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     loadUser();
+
+    if (isSupabaseConfigured && supabase) {
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange(async (event) => {
+        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+          const u = await fetchMe();
+          setUser(u || null);
+        } else if (event === "SIGNED_OUT") {
+          setUser(null);
+        }
+      });
+      return () => {
+        subscription?.unsubscribe();
+      };
+    }
   }, [loadUser]);
 
   useEffect(() => {

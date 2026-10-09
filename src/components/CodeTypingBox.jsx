@@ -15,7 +15,7 @@ function lineRangeAt(text, index) {
 function Caret() {
   return (
     <span
-      className="relative inline-block h-[1.1em] w-[2px] animate-caret align-[-0.12em] bg-sky-400 shadow-[0_0_14px_rgba(56,189,248,0.65)]"
+      className="relative inline-block h-[1.15em] w-[2.5px] animate-caret align-[-0.14em] rounded-full bg-accent shadow-[0_0_16px_rgba(56,189,248,0.9)]"
       aria-hidden
     />
   );
@@ -26,12 +26,12 @@ export function CodeTypingBox({ sourceText, typed, phase, language }) {
   const wrapRef = useRef(null);
 
   const types = useMemo(
-    () => getSyntaxTypesForChars(sourceText, language || "javascript"),
+    () => getSyntaxTypesForChars(sourceText, language || "powerscript"),
     [sourceText, language]
   );
 
   const windowStart = Math.max(0, cursor - 120);
-  const windowEnd = Math.min(sourceText.length, cursor + 320);
+  const windowEnd = Math.min(sourceText.length, cursor + 340);
   const [ls, le] = useMemo(
     () => lineRangeAt(sourceText, cursor),
     [sourceText, cursor]
@@ -59,29 +59,45 @@ export function CodeTypingBox({ sourceText, typed, phase, language }) {
     });
   }, [cursor, windowStart]);
 
+  const isPowerScript = language === "powerscript";
+
   return (
     <motion.div
       layout
-      className="relative w-full overflow-hidden rounded-3xl border border-white/10 bg-[#0d1117] p-1 shadow-panel ring-1 ring-black/30 dark:ring-white/10"
+      className="relative w-full overflow-hidden rounded-3xl border border-white/10 bg-[#0d1117] p-1 shadow-2xl ring-1 ring-white/10"
       transition={{ layout: { type: "spring", stiffness: 320, damping: 32 } }}
     >
-      <div className="flex items-center justify-between rounded-t-[1.35rem] border-b border-white/5 bg-[#161b22] px-4 py-2">
-        <div className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-rose-400/90" />
-          <span className="h-2 w-2 rounded-full bg-amber-400/90" />
-          <span className="h-2 w-2 rounded-full bg-emerald-400/90" />
+      {/* IDE Window Title Bar */}
+      <div className="flex items-center justify-between rounded-t-[1.35rem] border-b border-white/10 bg-[#161b22] px-5 py-3">
+        <div className="flex items-center gap-2.5">
+          <span className="h-3 w-3 rounded-full bg-rose-500/90 shadow-[0_0_8px_rgba(244,63,94,0.4)]" />
+          <span className="h-3 w-3 rounded-full bg-amber-500/90 shadow-[0_0_8px_rgba(245,158,11,0.4)]" />
+          <span className="h-3 w-3 rounded-full bg-emerald-500/90 shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
+          <span className="ml-3 font-mono text-xs text-mist-400">
+            {isPowerScript ? "PowerBuilder 2022 / PowerScript Editor" : "Code Snippet Practice"}
+          </span>
         </div>
-        <span className="font-mono text-[10px] font-medium uppercase tracking-widest text-mist-500">
-          {language || "code"}
-        </span>
+
+        <div className="flex items-center gap-2">
+          {isPowerScript ? (
+            <span className="inline-flex items-center gap-1 rounded-xl border border-amber-500/30 bg-amber-500/15 px-3 py-1 font-mono text-xs font-bold text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.25)]">
+              ⚡ PowerScript
+            </span>
+          ) : (
+            <span className="rounded-xl border border-white/10 bg-white/5 px-3 py-1 font-mono text-xs font-semibold uppercase text-accent">
+              {language || "code"}
+            </span>
+          )}
+          <span className="font-mono text-xs text-mist-400">
+            <span className="font-bold text-accent">{cursor}</span> / {sourceText.length}
+          </span>
+        </div>
       </div>
+
       <div className="rounded-b-[1.35rem] bg-[#0d1117] p-6 pt-5">
-        <p className="mb-3 text-center text-[10px] font-medium uppercase tracking-[0.28em] text-mist-500">
-          Type the snippet
-        </p>
         <div
           ref={wrapRef}
-          className="min-h-[8rem] whitespace-pre-wrap break-words font-mono text-[0.95rem] leading-relaxed sm:text-[1.02rem]"
+          className="min-h-[9rem] select-none whitespace-pre-wrap break-words font-mono text-[1.02rem] leading-relaxed tracking-wide sm:text-[1.12rem]"
         >
           {windowStart > 0 ? (
             <span className="text-mist-600">··· </span>
@@ -90,20 +106,20 @@ export function CodeTypingBox({ sourceText, typed, phase, language }) {
             let synCls = syntaxClass(syn);
             let statusCls = "";
             if (status === "correct") {
-              statusCls = "text-emerald-400";
+              statusCls = "text-emerald-400 font-medium drop-shadow-[0_0_6px_rgba(52,211,153,0.35)]";
               synCls = "";
             } else if (status === "wrong") {
               statusCls =
-                "bg-rose-500/25 text-rose-200 underline decoration-rose-400/90 decoration-2 underline-offset-[3px]";
+                "bg-rose-500/25 text-rose-200 underline decoration-rose-400 decoration-2 underline-offset-[3px]";
               synCls = "";
             } else if (status === "pending") {
               statusCls = synCls;
             }
             const showCaret = i === cursor && phase === "running";
             const base =
-              "rounded px-[1px] transition-colors duration-100 " +
+              "rounded px-[1px] transition-colors duration-75 " +
               (onLine && status === "pending"
-                ? "bg-sky-500/10 ring-1 ring-inset ring-sky-500/15 "
+                ? "bg-sky-500/10 ring-1 ring-inset ring-sky-500/20 "
                 : "");
 
             return (
@@ -119,7 +135,7 @@ export function CodeTypingBox({ sourceText, typed, phase, language }) {
                   {ch === "\n" ? (
                     "\n"
                   ) : ch === "\t" ? (
-                    <span className="inline-block w-[0.6em] border-l border-mist-700/60 text-mist-600">
+                    <span className="inline-block w-[0.8em] border-l border-mist-700/60 font-sans text-xs text-mist-600">
                       {"→"}
                     </span>
                   ) : ch === " " ? (
@@ -137,12 +153,30 @@ export function CodeTypingBox({ sourceText, typed, phase, language }) {
             </span>
           ) : null}
         </div>
-        <p className="mt-4 text-center text-[11px] text-mist-500">
-          <kbd className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-mist-300">
-            Alt+R
-          </kbd>{" "}
-          restart · Tab types indent · Enter breaks line
-        </p>
+
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-white/5 pt-3 font-mono text-xs text-mist-400">
+          <div className="flex items-center gap-2">
+            <kbd className="rounded border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] text-mist-300">
+              Alt+R
+            </kbd>
+            <span>Restart</span>
+            <span className="text-mist-600">·</span>
+            <kbd className="rounded border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] text-mist-300">
+              Tab
+            </kbd>
+            <span>Types 2 spaces/indent</span>
+            <span className="text-mist-600">·</span>
+            <kbd className="rounded border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] text-mist-300">
+              Enter
+            </kbd>
+            <span>New line</span>
+          </div>
+          {isPowerScript ? (
+            <span className="text-amber-300/80">
+              💡 PowerBuilder Tip: Keywords in PowerScript are case-insensitive.
+            </span>
+          ) : null}
+        </div>
       </div>
     </motion.div>
   );

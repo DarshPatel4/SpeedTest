@@ -51,7 +51,16 @@ export function Navbar() {
             <span className="mx-2 text-mist-500">|</span>
             <span>🔥 {streak}</span>
           </div>
-          {user ? <UserMenu /> : null}
+          {user ? (
+            <UserMenu />
+          ) : (
+            <Link
+              to="/login"
+              className="rounded-xl bg-accent px-3.5 py-1.5 text-xs font-semibold text-ink-950 shadow-glass-sm transition hover:brightness-110"
+            >
+              Sign in
+            </Link>
+          )}
         </div>
 
         <button
@@ -87,9 +96,15 @@ export function Navbar() {
               <NavLink to="/settings" onClick={() => setMobileOpen(false)} className={({ isActive }) => navLinkClass(isActive)}>
                 Settings
               </NavLink>
-              <NavLink to="/profile" onClick={() => setMobileOpen(false)} className={({ isActive }) => navLinkClass(isActive)}>
-                Profile
-              </NavLink>
+              {user ? (
+                <NavLink to="/profile" onClick={() => setMobileOpen(false)} className={({ isActive }) => navLinkClass(isActive)}>
+                  Profile
+                </NavLink>
+              ) : (
+                <NavLink to="/login" onClick={() => setMobileOpen(false)} className={({ isActive }) => navLinkClass(isActive)}>
+                  Sign in
+                </NavLink>
+              )}
             </div>
           </motion.div>
         )}

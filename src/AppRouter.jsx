@@ -83,18 +83,27 @@ function RouterShell() {
             </AuthLayout>
           }
         />
-          <Route
-            element={
-              <ProtectedRoute>
-                <AppShell />
-              </ProtectedRoute>
-            }
-          >
+        <Route
+          path="/reset-password"
+          element={
+            <AuthLayout>
+              <ResetPasswordPage />
+            </AuthLayout>
+          }
+        />
+          <Route element={<AppShell />}>
             <Route path="/" element={<HomePage />} />
             <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/leaderboard" element={<LeaderboardPage />} />
             <Route path="/challenge" element={<ChallengePage />} />
-            <Route path="/profile" element={<ProfilePage />} />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <ProfilePage />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/settings" element={<SettingsPage />} />
           </Route>
 

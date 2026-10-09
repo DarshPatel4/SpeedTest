@@ -9,21 +9,26 @@ export function SignupForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [notice, setNotice] = useState("");
   const { signup } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setNotice("");
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
     }
     setLoading(true);
     try {
-      await signup(name, email, password, confirmPassword);
+      const res = await signup(name, email, password, confirmPassword);
+      if (res?.needsEmailConfirmation) {
+        setNotice("Account created! Please check your email inbox to confirm your account.");
+        setLoading(false);
+        return;
+      }
       navigate("/", { replace: true });
     } catch (err) {
       setError(err.message || "Signup failed");
@@ -55,6 +60,16 @@ export function SignupForm() {
           className="rounded-2xl border border-rose-500/30 bg-rose-950/40 px-4 py-3 font-mono text-sm text-rose-200"
         >
           {error}
+        </motion.div>
+      )}
+
+      {notice && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="rounded-2xl border border-emerald-500/30 bg-emerald-950/40 px-4 py-3 font-mono text-sm text-emerald-200"
+        >
+          {notice}
         </motion.div>
       )}
 

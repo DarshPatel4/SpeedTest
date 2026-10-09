@@ -15,10 +15,10 @@ function appendMoreText(base, difficulty) {
   return base + (base.endsWith(" ") ? "" : " ") + extra;
 }
 
-function initialSource(customText, mode, difficulty) {
+function initialSource(customText, mode, difficulty, codeLangPreference = "all") {
   if (customText?.trim()) return { text: customText.trim(), lang: null };
   if (mode === "code") {
-    const t = buildCodeTypingText(difficulty);
+    const t = buildCodeTypingText(difficulty, 700, codeLangPreference);
     return { text: t.text, lang: t.language };
   }
   return { text: buildTypingText(difficulty), lang: null };
@@ -31,10 +31,11 @@ export function useTypingTest({
   soundEnabled,
   playKey,
   mode = "normal",
+  codeLangPreference = "all",
 }) {
   const initial = useRef(null);
   if (initial.current === null) {
-    initial.current = initialSource(customText, mode, difficulty);
+    initial.current = initialSource(customText, mode, difficulty, codeLangPreference);
   }
   const [codeLanguage, setCodeLanguage] = useState(initial.current.lang);
   const [sourceText, setSourceText] = useState(initial.current.text);
@@ -82,7 +83,7 @@ export function useTypingTest({
       return;
     }
     if (mode === "code") {
-      const { text, language } = buildCodeTypingText(difficulty);
+      const { text, language } = buildCodeTypingText(difficulty, 700, codeLangPreference);
       setSourceText(text);
       setCodeLanguage(language);
     } else {
@@ -93,7 +94,7 @@ export function useTypingTest({
     setWpmSeries([]);
     frozenElapsedRef.current = 0;
     startAtRef.current = null;
-  }, [difficulty, customText, mode]);
+  }, [difficulty, customText, mode, codeLangPreference]);
 
   const elapsedSec = useMemo(() => {
     if (phase === "idle") return 0;
@@ -229,14 +230,14 @@ export function useTypingTest({
       setSourceText(customText.trim());
       setCodeLanguage(null);
     } else if (mode === "code") {
-      const { text, language } = buildCodeTypingText(difficulty);
+      const { text, language } = buildCodeTypingText(difficulty, 700, codeLangPreference);
       setSourceText(text);
       setCodeLanguage(language);
     } else {
       setSourceText(buildTypingText(difficulty));
       setCodeLanguage(null);
     }
-  }, [durationSec, difficulty, customText, mode]);
+  }, [durationSec, difficulty, customText, mode, codeLangPreference]);
 
   const injectChar = useCallback(
     (ch, fromIdle) => {

@@ -41,6 +41,13 @@ function getEffectiveApiBaseUrl() {
     const { hostname } = window.location;
 
     if (isLocalDevHost(hostname)) {
+      if (import.meta.env.DEV) {
+        // In local development, always use Vite proxy unless explicitly targeting a local port
+        if (fromEnv && (fromEnv.includes("localhost") || fromEnv.includes("127.0.0.1"))) {
+          return trimTrailingSlash(fromEnv);
+        }
+        return "";
+      }
       if (fromEnv) {
         try {
           const resolved = fromEnv.includes("://") ? fromEnv : `https://${fromEnv}`;
@@ -52,8 +59,7 @@ function getEffectiveApiBaseUrl() {
           return DEFAULT_PROD_API_ORIGIN;
         }
       }
-      // `vite` dev: empty origin → Vite proxy. `vite preview` has no proxy → use default API.
-      return import.meta.env.DEV ? "" : DEFAULT_PROD_API_ORIGIN;
+      return DEFAULT_PROD_API_ORIGIN;
     }
 
     // Deployed (Vercel, custom domain, preview URL, etc.)

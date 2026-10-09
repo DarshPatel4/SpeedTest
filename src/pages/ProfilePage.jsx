@@ -11,11 +11,12 @@ export function ProfilePage() {
   const [err, setErr] = useState("");
 
   useEffect(() => {
-    if (!user?._id) return;
-    fetchProfileStats(user._id)
+    const userId = user?.id || user?._id;
+    if (!userId) return;
+    fetchProfileStats(userId)
       .then(setStats)
       .catch(() => undefined);
-  }, [user?._id]);
+  }, [user?.id, user?._id]);
 
   useEffect(() => {
     loadSessions().catch(() => undefined);

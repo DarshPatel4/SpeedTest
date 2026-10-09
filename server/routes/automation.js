@@ -5,6 +5,7 @@ import { DailyChallenge } from "../models/DailyChallenge.js";
 import { LeaderboardSnapshot } from "../models/LeaderboardSnapshot.js";
 import { Score } from "../models/Score.js";
 import { User } from "../models/User.js";
+import { supabaseServer, isServerSupabaseConfigured } from "../lib/supabase.js";
 
 const router = express.Router();
 
@@ -19,22 +20,65 @@ function computeLevel(xp) {
 router.get("/daily-challenge", async (_req, res) => {
   try {
     const todayKey = toDateKey();
-    const challenge =
-      (await DailyChallenge.findOne({ dateKey: todayKey })) ||
-      (await DailyChallenge.findOne({}).sort({ dateKey: -1 }));
 
-    if (!challenge) {
-      return res.status(404).json({ message: "No daily challenge available" });
+    if (isServerSupabaseConfigured && supabaseServer) {
+      const { data: challenge } = await supabaseServer
+        .from("daily_challenges")
+        .select("date_key, text, source, metadata")
+        .eq("date_key", todayKey)
+        .maybeSingle();
+
+      if (challenge) {
+        return res.json({
+          challenge: {
+            dateKey: challenge.date_key,
+            text: challenge.text,
+            source: challenge.source,
+            metadata: challenge.metadata || {},
+          },
+        });
+      }
+
+      // Latest challenge fallback
+      const { data: latest } = await supabaseServer
+        .from("daily_challenges")
+        .select("date_key, text, source, metadata")
+        .order("date_key", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (latest) {
+        return res.json({
+          challenge: {
+            dateKey: latest.date_key,
+            text: latest.text,
+            source: latest.source,
+            metadata: latest.metadata || {},
+          },
+        });
+      }
     }
 
-    return res.json({
-      challenge: {
-        dateKey: challenge.dateKey,
-        text: challenge.text,
-        source: challenge.source,
-        metadata: challenge.metadata || {},
-      },
-    });
+    try {
+      const challenge =
+        (await DailyChallenge.findOne({ dateKey: todayKey })) ||
+        (await DailyChallenge.findOne({}).sort({ dateKey: -1 }));
+
+      if (challenge) {
+        return res.json({
+          challenge: {
+            dateKey: challenge.dateKey,
+            text: challenge.text,
+            source: challenge.source,
+            metadata: challenge.metadata || {},
+          },
+        });
+      }
+    } catch {
+      // ignore
+    }
+
+    return res.status(404).json({ message: "No daily challenge available" });
   } catch (error) {
     console.error("Daily challenge fetch error:", error);
     return res.status(500).json({ message: "Failed to fetch daily challenge" });
@@ -46,6 +90,29 @@ router.post("/automation/daily-challenge", protectN8n, async (req, res) => {
     const { dateKey = toDateKey(), text, source = "n8n", metadata = {} } = req.body || {};
     if (!text || typeof text !== "string" || !text.trim()) {
       return res.status(400).json({ message: "text is required" });
+    }
+
+    if (isServerSupabaseConfigured && supabaseServer) {
+      const { data, error } = await supabaseServer
+        .from("daily_challenges")
+        .upsert(
+          {
+            date_key: String(dateKey),
+            text: text.trim(),
+            source,
+            metadata,
+          },
+          { onConflict: "date_key" }
+        )
+        .select()
+        .single();
+
+      if (error) throw new Error(error.message);
+
+      return res.json({
+        message: "Daily challenge stored",
+        challenge: { dateKey: data.date_key, text: data.text, source: data.source },
+      });
     }
 
     const challenge = await DailyChallenge.findOneAndUpdate(
@@ -69,6 +136,30 @@ router.post("/automation/xp-reward", protectN8n, async (req, res) => {
     const { userId, xpAwarded, reason = "workflow-award", metadata = {} } = req.body || {};
     if (!userId || !Number.isFinite(xpAwarded)) {
       return res.status(400).json({ message: "userId and numeric xpAwarded are required" });
+    }
+
+    if (isServerSupabaseConfigured && supabaseServer) {
+      const { data: profile } = await supabaseServer
+        .from("profiles")
+        .select("xp, level")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (!profile) return res.status(404).json({ message: "User not found" });
+
+      const newXp = Math.max(0, (profile.xp || 0) + Number(xpAwarded));
+      const newLevel = computeLevel(newXp);
+
+      await supabaseServer
+        .from("profiles")
+        .update({ xp: newXp, level: newLevel, updated_at: new Date().toISOString() })
+        .eq("id", userId);
+
+      return res.json({
+        message: "XP reward applied",
+        user: { id: userId, xp: newXp, level: newLevel },
+        reward: { xpAwarded: Number(xpAwarded), reason, metadata },
+      });
     }
 
     const user = await User.findById(userId);
@@ -99,13 +190,45 @@ router.get("/automation/reports/weekly", protectN8n, async (req, res) => {
     }
 
     const lookbackDays = Math.max(1, Number(days) || 7);
-    const fromDate = new Date(Date.now() - lookbackDays * 24 * 60 * 60 * 1000);
-    const objectId = new mongoose.Types.ObjectId(String(userId));
+    const fromDate = new Date(Date.now() - lookbackDays * 24 * 60 * 60 * 1000).toISOString();
 
+    if (isServerSupabaseConfigured && supabaseServer) {
+      const { data: profile } = await supabaseServer
+        .from("profiles")
+        .select("id, name, email, xp, level, streak")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (!profile) return res.status(404).json({ message: "User not found" });
+
+      const { data: scores } = await supabaseServer
+        .from("scores")
+        .select("wpm, accuracy, created_at")
+        .eq("user_id", userId)
+        .gte("created_at", fromDate);
+
+      const list = scores || [];
+      const testsCount = list.length;
+      const avgWpm = testsCount ? (list.reduce((s, r) => s + r.wpm, 0) / testsCount).toFixed(1) : "0.0";
+      const avgAccuracy = testsCount ? (list.reduce((s, r) => s + Number(r.accuracy), 0) / testsCount).toFixed(1) : "0.0";
+      const bestWpm = testsCount ? Math.max(...list.map((r) => r.wpm)) : 0;
+      const latestTestAt = testsCount ? list[list.length - 1].created_at : null;
+
+      return res.json({
+        report: {
+          rangeDays: lookbackDays,
+          generatedAt: new Date().toISOString(),
+          user: profile,
+          performance: { testsCount, avgWpm, avgAccuracy, bestWpm, latestTestAt },
+        },
+      });
+    }
+
+    const objectId = new mongoose.Types.ObjectId(String(userId));
     const [user, stats] = await Promise.all([
       User.findById(objectId).select("name email xp level streak"),
       Score.aggregate([
-        { $match: { userId: objectId, date: { $gte: fromDate } } },
+        { $match: { userId: objectId, date: { $gte: new Date(fromDate) } } },
         {
           $group: {
             _id: "$userId",
@@ -163,6 +286,38 @@ router.post("/automation/leaderboard/recompute", protectN8n, async (req, res) =>
     const { dateKey = toDateKey(), topN = 100, source = "n8n" } = req.body || {};
     const size = Math.max(1, Math.min(500, Number(topN) || 100));
 
+    if (isServerSupabaseConfigured && supabaseServer) {
+      const { data: scores } = await supabaseServer
+        .from("scores")
+        .select("user_id, wpm, accuracy")
+        .order("wpm", { ascending: false })
+        .limit(size);
+
+      const rankedEntries = (scores || []).map((row, idx) => ({
+        userId: row.user_id,
+        wpm: row.wpm,
+        accuracy: row.accuracy,
+        rank: idx + 1,
+      }));
+
+      await supabaseServer.from("leaderboard_snapshots").upsert(
+        {
+          date_key: String(dateKey),
+          entries: rankedEntries,
+          total_ranked_users: rankedEntries.length,
+          source,
+        },
+        { onConflict: "date_key" }
+      );
+
+      return res.json({
+        message: "Leaderboard recomputed",
+        dateKey: String(dateKey),
+        totalRankedUsers: rankedEntries.length,
+        top: rankedEntries.slice(0, 10),
+      });
+    }
+
     const ranking = await Score.aggregate([
       {
         $group: {
@@ -176,7 +331,6 @@ router.post("/automation/leaderboard/recompute", protectN8n, async (req, res) =>
       { $limit: size },
     ]);
 
-    const now = new Date();
     const rankedEntries = ranking.map((row, index) => ({
       userId: row._id,
       wpm: row.wpm,
@@ -184,22 +338,6 @@ router.post("/automation/leaderboard/recompute", protectN8n, async (req, res) =>
       testsCount: row.testsCount,
       rank: index + 1,
     }));
-
-    if (rankedEntries.length > 0) {
-      const bulk = rankedEntries.map((entry) => ({
-        updateOne: {
-          filter: { _id: entry.userId },
-          update: {
-            $set: {
-              leaderboardRank: entry.rank,
-              leaderboardScore: entry.wpm,
-              lastLeaderboardSyncAt: now,
-            },
-          },
-        },
-      }));
-      await User.bulkWrite(bulk, { ordered: false });
-    }
 
     await LeaderboardSnapshot.findOneAndUpdate(
       { dateKey: String(dateKey) },

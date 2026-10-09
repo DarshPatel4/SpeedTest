@@ -13,7 +13,9 @@
     "start": "node server/index.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.117.3",
     "bcryptjs": "^3.0.3",
+    "caniuse-lite": "^1.0.30001815",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^4.22.1",
