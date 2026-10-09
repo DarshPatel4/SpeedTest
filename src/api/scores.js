@@ -26,49 +26,53 @@ export async function saveScore(payload) {
   const { wpm, accuracy, difficulty = "medium", mode = "normal" } = payload || {};
 
   if (isSupabaseConfigured && supabase) {
-    const { data: sessData } = await supabase.auth.getSession();
-    const user = sessData?.session?.user;
+    try {
+      const { data: sessData } = await supabase.auth.getSession();
+      const user = sessData?.session?.user;
 
-    if (user) {
-      // 1. Insert into scores table
-      const { data: score, error: scoreErr } = await supabase
-        .from("scores")
-        .insert({
-          user_id: user.id,
-          wpm,
-          accuracy,
-          difficulty,
-          mode,
-        })
-        .select()
-        .single();
+      if (user) {
+        // 1. Insert into scores table
+        const { data: score, error: scoreErr } = await supabase
+          .from("scores")
+          .insert({
+            user_id: user.id,
+            wpm,
+            accuracy,
+            difficulty,
+            mode,
+          })
+          .select()
+          .single();
 
-      if (scoreErr) {
-        console.warn("Could not save score to Supabase:", scoreErr.message);
+        if (scoreErr) {
+          console.warn("Could not save score to Supabase:", scoreErr.message);
+        }
+
+        // 2. Update user profile stats
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("test_count, wpm_history, accuracy_history")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        const newTestCount = (profile?.test_count || 0) + 1;
+        const newWpmHistory = [...(profile?.wpm_history || []), wpm].slice(-100);
+        const newAccHistory = [...(profile?.accuracy_history || []), accuracy].slice(-100);
+
+        await supabase
+          .from("profiles")
+          .update({
+            test_count: newTestCount,
+            wpm_history: newWpmHistory,
+            accuracy_history: newAccHistory,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", user.id);
+
+        return { score: score || { wpm, accuracy, difficulty, mode } };
       }
-
-      // 2. Update user profile stats
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("test_count, wpm_history, accuracy_history")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      const newTestCount = (profile?.test_count || 0) + 1;
-      const newWpmHistory = [...(profile?.wpm_history || []), wpm].slice(-100);
-      const newAccHistory = [...(profile?.accuracy_history || []), accuracy].slice(-100);
-
-      await supabase
-        .from("profiles")
-        .update({
-          test_count: newTestCount,
-          wpm_history: newWpmHistory,
-          accuracy_history: newAccHistory,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", user.id);
-
-      return { score: score || { wpm, accuracy, difficulty, mode } };
+    } catch (e) {
+      console.warn("Save score exception:", e);
     }
   }
 
@@ -87,32 +91,58 @@ export async function saveScore(payload) {
 
 export async function fetchLeaderboard() {
   if (isSupabaseConfigured && supabase) {
-    const { data, error } = await supabase
-      .from("scores")
-      .select("id, wpm, accuracy, difficulty, mode, created_at, profiles(id, name, email, avatar_url)")
-      .order("wpm", { ascending: false })
-      .order("created_at", { ascending: true })
-      .limit(10);
+    try {
+      // 1. Try live scores table joined with user profiles
+      const { data, error } = await supabase
+        .from("scores")
+        .select("id, wpm, accuracy, difficulty, mode, created_at, profiles(id, name, email, avatar_url)")
+        .order("wpm", { ascending: false })
+        .order("created_at", { ascending: true })
+        .limit(15);
 
-    if (error) {
-      console.warn("Error fetching Supabase leaderboard:", error.message);
-    } else if (data && data.length > 0) {
-      return data.map((row) => ({
-        id: row.id,
-        userId: row.profiles?.id,
-        name: row.profiles?.name || "Unknown",
-        email: row.profiles?.email || "",
-        avatarUrl: row.profiles?.avatar_url || "",
-        wpm: row.wpm,
-        accuracy: row.accuracy,
-        difficulty: row.difficulty,
-        mode: row.mode,
-        at: row.created_at,
-      }));
+      if (!error && data && data.length > 0) {
+        return data.map((row) => ({
+          id: row.id,
+          userId: row.profiles?.id,
+          name: row.profiles?.name || "Anonymous Runner",
+          email: row.profiles?.email || "",
+          avatarUrl: row.profiles?.avatar_url || "",
+          wpm: row.wpm,
+          accuracy: row.accuracy,
+          difficulty: row.difficulty,
+          mode: row.mode,
+          at: row.created_at,
+        }));
+      }
+
+      // 2. Fallback to Supabase leaderboard_snapshots (contains seeded top runners)
+      const { data: snapshot } = await supabase
+        .from("leaderboard_snapshots")
+        .select("entries")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (snapshot?.entries && Array.isArray(snapshot.entries) && snapshot.entries.length > 0) {
+        return snapshot.entries.map((item, idx) => ({
+          id: `snap-${idx}`,
+          userId: item.userId || `user-${idx}`,
+          name: item.name || `Runner #${idx + 1}`,
+          email: "",
+          avatarUrl: "",
+          wpm: item.wpm,
+          accuracy: item.accuracy,
+          difficulty: item.difficulty || "medium",
+          mode: item.mode || "code",
+          at: new Date().toISOString(),
+        }));
+      }
+    } catch (err) {
+      console.warn("Error fetching Supabase leaderboard:", err);
     }
   }
 
-  // Fallback to local stored scores or empty array
+  // Fallback to local stored scores
   const local = loadLocalScores();
   return local.map((s, idx) => ({
     id: s.id || `local-${idx}`,
@@ -128,21 +158,25 @@ export async function fetchLeaderboard() {
 
 export async function fetchProfileStats(userId) {
   if (isSupabaseConfigured && supabase && userId && userId !== "local-user-id") {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("xp, level, streak, test_count, wpm_history, accuracy_history")
-      .eq("id", userId)
-      .maybeSingle();
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("xp, level, streak, test_count, wpm_history, accuracy_history")
+        .eq("id", userId)
+        .maybeSingle();
 
-    if (profile) {
-      return {
-        xp: profile.xp || 0,
-        level: profile.level || 1,
-        streak: profile.streak || 0,
-        testCount: profile.test_count || 0,
-        wpmHistory: profile.wpm_history || [],
-        accuracyHistory: profile.accuracy_history || [],
-      };
+      if (profile) {
+        return {
+          xp: profile.xp || 0,
+          level: profile.level || 1,
+          streak: profile.streak || 0,
+          testCount: profile.test_count || 0,
+          wpmHistory: profile.wpm_history || [],
+          accuracyHistory: profile.accuracy_history || [],
+        };
+      }
+    } catch {
+      // fallback
     }
   }
 

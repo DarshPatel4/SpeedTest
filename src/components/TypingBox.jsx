@@ -14,7 +14,7 @@ function wordRangeAt(text, index) {
 function Caret() {
   return (
     <span
-      className="relative inline-block h-[1.15em] w-[2.5px] animate-caret align-[-0.14em] rounded-full bg-accent shadow-[0_0_16px_rgba(56,189,248,0.9)]"
+      className="relative inline-block h-[1.2em] w-[2.5px] animate-caret align-[-0.15em] rounded-full bg-accent shadow-[0_0_16px_rgba(56,189,248,0.9)]"
       aria-hidden
     />
   );
@@ -53,39 +53,26 @@ export function TypingBox({ sourceText, typed, phase }) {
   return (
     <motion.div
       layout
-      className="relative w-full rounded-3xl border border-white/10 bg-gradient-to-b from-white/[0.05] to-ink-950/70 p-7 shadow-2xl backdrop-blur-2xl ring-1 ring-white/10"
+      className="relative w-full rounded-3xl border border-white/[0.08] bg-[#121620]/70 p-8 shadow-2xl backdrop-blur-2xl ring-1 ring-white/10"
       transition={{ layout: { type: "spring", stiffness: 320, damping: 32 } }}
     >
-      <div className="mb-4 flex items-center justify-between border-b border-white/5 pb-3">
-        <div className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-accent shadow-[0_0_10px_rgba(56,189,248,0.8)]" />
-          <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.25em] text-mist-400">
-            Active Practice Buffer
-          </span>
-        </div>
-        <span className="font-mono text-xs text-mist-400">
-          <span className="font-bold text-accent">{cursor}</span> / {sourceText.length} chars
-        </span>
-      </div>
-
       <div
         ref={wrapRef}
-        className="min-h-[8.5rem] select-none text-left font-mono text-[1.25rem] leading-[2] tracking-wider sm:text-[1.45rem]"
+        className="min-h-[10rem] select-none text-left font-mono text-[1.35rem] leading-[2.1] tracking-wide sm:text-[1.6rem]"
         style={{ wordBreak: "break-word" }}
       >
         {windowStart > 0 ? (
-          <span className="text-mist-600">··· </span>
+          <span className="text-slate-600">··· </span>
         ) : null}
         {chars.map(({ ch, inWord, status, i }) => {
           let cls = "inline rounded px-[1px] transition-colors duration-75 ";
-          if (inWord) cls += "bg-accent/15 ring-1 ring-accent/20 rounded ";
+          if (inWord) cls += "bg-white/[0.04] ";
           if (status === "pending") {
-            cls += "text-mist-500 hover:text-mist-400";
+            cls += "text-slate-500 hover:text-slate-400";
           } else if (status === "correct") {
-            cls += "text-emerald-400 font-medium drop-shadow-[0_0_8px_rgba(52,211,153,0.3)]";
+            cls += "text-slate-100 font-medium drop-shadow-sm";
           } else if (status === "wrong") {
-            cls +=
-              "bg-rose-500/25 text-rose-200 underline decoration-rose-400 decoration-2 underline-offset-4";
+            cls += "bg-rose-500/25 text-rose-300 underline decoration-rose-400 decoration-2 underline-offset-4";
           }
 
           const showCaret = i === cursor && phase === "running";
@@ -106,23 +93,6 @@ export function TypingBox({ sourceText, typed, phase }) {
             <Caret />
           </span>
         ) : null}
-      </div>
-
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-white/5 pt-3 text-xs text-mist-400">
-        <div className="flex items-center gap-2">
-          <kbd className="rounded-lg border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[11px] text-mist-200 shadow-sm">
-            Tab
-          </kbd>
-          <span>Quick Restart</span>
-          <span className="text-mist-600">·</span>
-          <kbd className="rounded-lg border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[11px] text-mist-200 shadow-sm">
-            Esc
-          </kbd>
-          <span>Reset Test</span>
-        </div>
-        <span className="font-mono text-[11px] text-mist-400">
-          Tip: Smooth rhythm beats burst typing.
-        </span>
       </div>
     </motion.div>
   );

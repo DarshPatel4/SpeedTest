@@ -23,3 +23,5 @@ export const supabaseServer = isServerSupabaseConfigured
     })
   : null;
 
+export const supabase = supabaseServer;
+

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import { motion } from "framer-motion";
+import { Terminal, Code2, Info } from "lucide-react";
 import { getSyntaxTypesForChars, syntaxClass } from "../utils/codeTokens.js";
 
 function lineRangeAt(text, index) {
@@ -80,12 +81,14 @@ export function CodeTypingBox({ sourceText, typed, phase, language }) {
 
         <div className="flex items-center gap-2">
           {isPowerScript ? (
-            <span className="inline-flex items-center gap-1 rounded-xl border border-amber-500/30 bg-amber-500/15 px-3 py-1 font-mono text-xs font-bold text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.25)]">
-              ⚡ PowerScript
+            <span className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/15 px-3 py-1 font-mono text-xs font-bold text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.25)]">
+              <Terminal className="h-3 w-3 text-amber-400" />
+              <span>PowerScript</span>
             </span>
           ) : (
-            <span className="rounded-xl border border-white/10 bg-white/5 px-3 py-1 font-mono text-xs font-semibold uppercase text-accent">
-              {language || "code"}
+            <span className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-1 font-mono text-xs font-semibold uppercase text-accent">
+              <Code2 className="h-3 w-3 text-accent" />
+              <span>{language || "code"}</span>
             </span>
           )}
           <span className="font-mono text-xs text-mist-400">
@@ -172,8 +175,9 @@ export function CodeTypingBox({ sourceText, typed, phase, language }) {
             <span>New line</span>
           </div>
           {isPowerScript ? (
-            <span className="text-amber-300/80">
-              💡 PowerBuilder Tip: Keywords in PowerScript are case-insensitive.
+            <span className="flex items-center gap-1.5 text-amber-300/80">
+              <Info className="h-3 w-3 text-amber-400" />
+              <span>PowerBuilder Tip: Keywords in PowerScript are case-insensitive.</span>
             </span>
           ) : null}
         </div>

@@ -1,6 +1,14 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState, useMemo } from "react";
 import {
+  Trophy,
+  Zap,
+  Rocket,
+  Target,
+  Activity,
+  Sparkles,
+} from "lucide-react";
+import {
   Area,
   AreaChart,
   CartesianGrid,
@@ -36,11 +44,11 @@ export function ResultModal({
 
   // Performance tier
   const tier = useMemo(() => {
-    if (wpm >= 100) return { title: "TIER S · APEX FLOW", color: "from-fuchsia-500 to-rose-500", border: "border-fuchsia-500/40", text: "text-fuchsia-300", icon: "🏆" };
-    if (wpm >= 80) return { title: "TIER A · CYBER MASTER", color: "from-sky-400 to-cyan-300", border: "border-sky-500/40", text: "text-sky-300", icon: "⚡" };
-    if (wpm >= 60) return { title: "TIER B · SWIFT RUNNER", color: "from-emerald-400 to-teal-300", border: "border-emerald-500/40", text: "text-emerald-300", icon: "🚀" };
-    if (wpm >= 40) return { title: "TIER C · STEADY CADENCE", color: "from-amber-400 to-yellow-300", border: "border-amber-500/40", text: "text-amber-300", icon: "🎯" };
-    return { title: "TIER D · ROOKIE WARMUP", color: "from-slate-400 to-slate-300", border: "border-slate-500/40", text: "text-mist-300", icon: "🌱" };
+    if (wpm >= 100) return { title: "TIER S · APEX FLOW", color: "from-fuchsia-500 to-rose-500", border: "border-fuchsia-500/40", text: "text-fuchsia-300", icon: Trophy };
+    if (wpm >= 80) return { title: "TIER A · CYBER MASTER", color: "from-sky-400 to-cyan-300", border: "border-sky-500/40", text: "text-sky-300", icon: Zap };
+    if (wpm >= 60) return { title: "TIER B · SWIFT RUNNER", color: "from-emerald-400 to-teal-300", border: "border-emerald-500/40", text: "text-emerald-300", icon: Rocket };
+    if (wpm >= 40) return { title: "TIER C · STEADY CADENCE", color: "from-amber-400 to-yellow-300", border: "border-amber-500/40", text: "text-amber-300", icon: Target };
+    return { title: "TIER D · ROOKIE WARMUP", color: "from-slate-400 to-slate-300", border: "border-slate-500/40", text: "text-mist-300", icon: Activity };
   }, [wpm]);
 
   const xpEarned = Math.round(wpm + accuracy);
@@ -74,7 +82,7 @@ export function ResultModal({
               <div
                 className={`inline-flex items-center gap-2 rounded-2xl border ${tier.border} bg-white/5 px-4 py-1.5 font-mono text-xs font-bold ${tier.text} shadow-glass-sm`}
               >
-                <span>{tier.icon}</span>
+                <tier.icon className="h-3.5 w-3.5" />
                 <span>{tier.title}</span>
               </div>
 
@@ -90,7 +98,8 @@ export function ResultModal({
 
               {/* XP Gain badge */}
               <div className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-1 font-mono text-xs font-bold text-amber-300">
-                <span>✨ +{xpEarned} XP Earned</span>
+                <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                <span>+{xpEarned} XP Earned</span>
               </div>
             </div>
 

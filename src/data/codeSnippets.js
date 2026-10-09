@@ -260,13 +260,12 @@ export function pickCodeLanguageForDifficulty(difficulty, requestedLang = "all")
 
 export function buildCodeTypingText(difficulty, minChars = 700, requestedLang = "all") {
   const lang = pickCodeLanguageForDifficulty(difficulty, requestedLang);
-  const pool = CODE_SNIPPETS.filter(
-    (s) => s.language === lang && s.difficulty === difficulty
-  );
-  const wide =
-    pool.length > 0
-      ? pool
-      : CODE_SNIPPETS.filter((s) => s.language === lang);
+  const sameLang =
+    lang && lang !== "all"
+      ? CODE_SNIPPETS.filter((s) => s.language === lang)
+      : CODE_SNIPPETS;
+  const pool = sameLang.filter((s) => s.difficulty === difficulty);
+  const wide = pool.length > 0 ? pool : sameLang;
   const parts = shuffle(wide.length ? wide : CODE_SNIPPETS);
   let out = "";
   let i = 0;

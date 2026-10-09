@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { fetchLeaderboard } from "../api/scores.js";
 import { supabase, isSupabaseConfigured } from "../lib/supabase.js";
 import { motion } from "framer-motion";
+import { Medal, RefreshCw } from "lucide-react";
 
 export function LeaderboardPage() {
   const [rows, setRows] = useState([]);
@@ -73,7 +74,7 @@ export function LeaderboardPage() {
               disabled={loading}
               className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 font-mono text-xs font-semibold text-mist-200 shadow-glass-sm transition hover:bg-white/10 disabled:opacity-50"
             >
-              <span className={loading ? "animate-spin" : ""}>🔄</span>
+              <RefreshCw className={`h-3.5 w-3.5 text-accent ${loading ? "animate-spin" : ""}`} />
               <span>{loading ? "Syncing..." : "Live Refresh"}</span>
             </button>
           </div>
@@ -145,16 +146,19 @@ export function LeaderboardPage() {
                     {/* Rank */}
                     <td className="px-6 py-4 font-bold">
                       {isTop1 ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500/20 px-2.5 py-1 text-xs text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.3)]">
-                          🥇 #1
+                        <span className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500/20 px-2.5 py-1 text-xs font-bold text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.3)]">
+                          <Medal className="h-3.5 w-3.5 text-amber-400 fill-amber-400/20" />
+                          <span>#1</span>
                         </span>
                       ) : isTop2 ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-xl bg-slate-300/20 px-2.5 py-1 text-xs text-slate-200">
-                          🥈 #2
+                        <span className="inline-flex items-center gap-1.5 rounded-xl bg-slate-300/20 px-2.5 py-1 text-xs font-bold text-slate-200">
+                          <Medal className="h-3.5 w-3.5 text-slate-300 fill-slate-300/20" />
+                          <span>#2</span>
                         </span>
                       ) : isTop3 ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-xl bg-orange-600/20 px-2.5 py-1 text-xs text-orange-300">
-                          🥉 #3
+                        <span className="inline-flex items-center gap-1.5 rounded-xl bg-orange-600/20 px-2.5 py-1 text-xs font-bold text-orange-300">
+                          <Medal className="h-3.5 w-3.5 text-orange-400 fill-orange-400/20" />
+                          <span>#3</span>
                         </span>
                       ) : (
                         <span className="text-mist-500">#{rank}</span>

@@ -15,8 +15,8 @@ function appendMoreText(base, difficulty) {
   return base + (base.endsWith(" ") ? "" : " ") + extra;
 }
 
-function initialSource(customText, mode, difficulty, codeLangPreference = "all") {
-  if (customText?.trim()) return { text: customText.trim(), lang: null };
+function initialSource(customText, mode, difficulty, codeLangPreference = "all", codeLanguageProp = null) {
+  if (customText?.trim()) return { text: customText.trim(), lang: codeLanguageProp || (mode === "code" ? codeLangPreference : null) };
   if (mode === "code") {
     const t = buildCodeTypingText(difficulty, 700, codeLangPreference);
     return { text: t.text, lang: t.language };
@@ -28,6 +28,7 @@ export function useTypingTest({
   durationSec,
   difficulty,
   customText,
+  codeLanguageProp = null,
   soundEnabled,
   playKey,
   mode = "normal",
@@ -35,7 +36,7 @@ export function useTypingTest({
 }) {
   const initial = useRef(null);
   if (initial.current === null) {
-    initial.current = initialSource(customText, mode, difficulty, codeLangPreference);
+    initial.current = initialSource(customText, mode, difficulty, codeLangPreference, codeLanguageProp);
   }
   const [codeLanguage, setCodeLanguage] = useState(initial.current.lang);
   const [sourceText, setSourceText] = useState(initial.current.text);
@@ -79,7 +80,12 @@ export function useTypingTest({
   useEffect(() => {
     if (phaseRef.current !== "idle") return;
     if (customText?.trim()) {
-      setCodeLanguage(null);
+      setSourceText(customText.trim());
+      setCodeLanguage(codeLanguageProp || (mode === "code" ? codeLangPreference : null));
+      setTyped("");
+      setWpmSeries([]);
+      frozenElapsedRef.current = 0;
+      startAtRef.current = null;
       return;
     }
     if (mode === "code") {
@@ -94,7 +100,7 @@ export function useTypingTest({
     setWpmSeries([]);
     frozenElapsedRef.current = 0;
     startAtRef.current = null;
-  }, [difficulty, customText, mode, codeLangPreference]);
+  }, [difficulty, customText, mode, codeLangPreference, codeLanguageProp]);
 
   const elapsedSec = useMemo(() => {
     if (phase === "idle") return 0;
@@ -228,7 +234,7 @@ export function useTypingTest({
     setTick(0);
     if (customText?.trim()) {
       setSourceText(customText.trim());
-      setCodeLanguage(null);
+      setCodeLanguage(codeLanguageProp || (mode === "code" ? codeLangPreference : null));
     } else if (mode === "code") {
       const { text, language } = buildCodeTypingText(difficulty, 700, codeLangPreference);
       setSourceText(text);
@@ -237,7 +243,24 @@ export function useTypingTest({
       setSourceText(buildTypingText(difficulty));
       setCodeLanguage(null);
     }
-  }, [durationSec, difficulty, customText, mode, codeLangPreference]);
+  }, [durationSec, difficulty, customText, codeLanguageProp, mode, codeLangPreference]);
+
+  const loadSnippet = useCallback(
+    (text, lang = null) => {
+      if (timerIdRef.current) clearInterval(timerIdRef.current);
+      if (sampleIdRef.current) clearInterval(sampleIdRef.current);
+      startAtRef.current = null;
+      frozenElapsedRef.current = 0;
+      setTyped("");
+      setPhase("idle");
+      setTimeLeft(durationSec);
+      setWpmSeries([]);
+      setTick(0);
+      setSourceText(text.trim());
+      setCodeLanguage(lang || (mode === "code" ? codeLangPreference : null));
+    },
+    [durationSec, mode, codeLangPreference]
+  );
 
   const injectChar = useCallback(
     (ch, fromIdle) => {
@@ -344,6 +367,7 @@ export function useTypingTest({
     correctChars,
     wpmSeries,
     restart,
+    loadSnippet,
     elapsedSec,
     mode,
     codeLanguage,

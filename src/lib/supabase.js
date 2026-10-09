@@ -1,7 +1,17 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
+const getEnv = (key) => {
+  if (typeof import.meta !== "undefined" && import.meta?.env?.[key]) {
+    return import.meta.env[key];
+  }
+  if (typeof process !== "undefined" && process?.env?.[key]) {
+    return process.env[key];
+  }
+  return "";
+};
+
+const supabaseUrl = getEnv("VITE_SUPABASE_URL") || getEnv("SUPABASE_URL");
+const supabaseAnonKey = getEnv("VITE_SUPABASE_ANON_KEY") || getEnv("SUPABASE_SERVICE_ROLE_KEY");
 
 export const isSupabaseConfigured = Boolean(
   supabaseUrl &&
@@ -19,4 +29,3 @@ export const supabase = isSupabaseConfigured
       },
     })
   : null;
-

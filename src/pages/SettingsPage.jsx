@@ -3,42 +3,78 @@ import { useState } from "react";
 export function SettingsPage() {
   const [compact, setCompact] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [soundVolume, setSoundVolume] = useState(80);
 
   return (
-    <section className="space-y-5">
-      <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-      <div className="space-y-3 rounded-3xl border border-white/10 bg-white/5 p-6 shadow-glass">
-        <Toggle
-          label="Compact cards"
-          value={compact}
-          onChange={setCompact}
-          description="Tighter spacing for smaller screens."
-        />
-        <Toggle
-          label="Reduced motion"
-          value={reducedMotion}
-          onChange={setReducedMotion}
-          description="Minimizes animation intensity."
-        />
+    <div className="min-h-screen px-4 py-8 text-slate-100 sm:px-6">
+      <div className="mx-auto max-w-4xl space-y-6">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-accent shadow-[0_0_10px_rgba(56,189,248,0.8)]" />
+            <span className="font-mono text-xs font-semibold uppercase tracking-[0.25em] text-accent">
+              Preferences
+            </span>
+          </div>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight text-white sm:text-4xl">
+            Settings & Controls
+          </h1>
+        </div>
+
+        <div className="space-y-4 rounded-3xl border border-white/[0.08] bg-[#121620]/80 p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
+          <Toggle
+            label="Compact Display"
+            value={compact}
+            onChange={setCompact}
+            description="Tighter visual density and padding for high resolution displays."
+          />
+          <Toggle
+            label="Reduced Motion"
+            value={reducedMotion}
+            onChange={setReducedMotion}
+            description="Minimizes transition and gauge animation intensity for optimal battery life."
+          />
+
+          <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4 flex items-center justify-between">
+            <div>
+              <span className="font-mono text-sm font-semibold text-white block">Keyboard Click Volume</span>
+              <span className="font-mono text-xs text-slate-400">Audio intensity of mechanical key clicks</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={soundVolume}
+                onChange={(e) => setSoundVolume(Number(e.target.value))}
+                className="w-32 accent-accent cursor-pointer"
+              />
+              <span className="font-mono text-xs text-accent font-bold w-8 text-right">{soundVolume}%</span>
+            </div>
+          </div>
+        </div>
       </div>
-    </section>
+    </div>
   );
 }
 
 function Toggle({ label, value, onChange, description }) {
   return (
-    <label className="flex items-center justify-between rounded-2xl border border-white/10 bg-ink-925/70 p-4">
-      <span>
-        <span className="block font-medium">{label}</span>
-        <span className="text-sm text-mist-400">{description}</span>
-      </span>
+    <label className="flex items-center justify-between rounded-2xl border border-white/5 bg-white/[0.02] p-4 cursor-pointer hover:bg-white/[0.04] transition">
+      <div>
+        <span className="block font-mono text-sm font-semibold text-white">{label}</span>
+        <span className="font-mono text-xs text-slate-400">{description}</span>
+      </div>
       <button
         type="button"
         onClick={() => onChange(!value)}
-        className={`h-7 w-14 rounded-full p-1 transition ${value ? "bg-accent" : "bg-white/20"}`}
+        className={`h-7 w-14 rounded-full p-1 transition-colors duration-200 ${
+          value ? "bg-accent shadow-[0_0_10px_rgba(56,189,248,0.5)]" : "bg-white/10"
+        }`}
       >
         <span
-          className={`block h-5 w-5 rounded-full bg-white transition ${value ? "translate-x-7" : "translate-x-0"}`}
+          className={`block h-5 w-5 rounded-full bg-white transition-transform duration-200 ${
+            value ? "translate-x-7" : "translate-x-0"
+          }`}
         />
       </button>
     </label>

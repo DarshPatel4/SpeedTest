@@ -1,17 +1,28 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  FileText,
+  Layers,
+  Code2,
+  Binary,
+  Flame,
+  FileEdit,
+  Database,
+  Volume2,
+  VolumeX,
+  Maximize2,
+  Minimize2,
+  RotateCcw,
+  Shuffle,
+  CheckCircle2,
+} from "lucide-react";
 import { CodeTypingBox } from "./components/CodeTypingBox.jsx";
-import { DailyChallenge } from "./components/DailyChallenge.jsx";
-import { DifficultySelector } from "./components/DifficultySelector.jsx";
-import { LanguageSelector } from "./components/LanguageSelector.jsx";
-import { LiveTelemetryCockpit } from "./components/LiveTelemetryCockpit.jsx";
-import { LiveWpmGraph } from "./components/LiveWpmGraph.jsx";
-import { ModeSelector } from "./components/ModeSelector.jsx";
-import { ResultModal } from "./components/ResultModal.jsx";
 import { TypingBox } from "./components/TypingBox.jsx";
+import { ResultModal } from "./components/ResultModal.jsx";
 import { WeakKeyStats, weakKeysSentence } from "./components/WeakKeyStats.jsx";
-import { XPProgress } from "./components/XPProgress.jsx";
+import { LiveWpmGraph } from "./components/LiveWpmGraph.jsx";
 import { saveScore } from "./api/scores.js";
+import { fetchPassagesFromSupabase, fetchDailyChallengeFromSupabase } from "./api/passages.js";
 import { useAnalytics } from "./hooks/useAnalytics.js";
 import { useSound } from "./hooks/useSound.js";
 import { useStreak } from "./hooks/useStreak.js";
@@ -21,15 +32,24 @@ import { useXPLevel } from "./hooks/useXPLevel.js";
 
 const DURATIONS = [15, 30, 60, 120];
 
+const PRACTICE_MODES = [
+  { id: "prose", label: "Words & Prose", icon: FileText },
+  { id: "powerscript", label: "PowerScript (PowerBuilder)", icon: Layers },
+  { id: "javascript", label: "JavaScript", icon: Code2 },
+  { id: "python", label: "Python", icon: Binary },
+  { id: "daily", label: "Daily Challenge", icon: Flame },
+  { id: "custom", label: "Custom Passage", icon: FileEdit },
+];
+
 export default function App() {
   const [durationSec, setDurationSec] = useState(30);
   const [difficulty, setDifficulty] = useState("medium");
-  const [mode, setMode] = useState("normal");
-  const [codeLangPreference, setCodeLangPreference] = useState("powerscript");
+  const [practiceMode, setPracticeMode] = useState("powerscript");
   const [customText, setCustomText] = useState("");
-  const [theme, setTheme] = useState(() =>
-    window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
-  );
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [supabaseLoading, setSupabaseLoading] = useState(false);
+  const [supabaseLoadedSource, setSupabaseLoadedSource] = useState("");
+
   const { enabled: sound, setEnabled: setSound, playKey } = useSound();
   const [focusMode, setFocusMode] = useState(false);
   const rootRef = useRef(null);
@@ -41,28 +61,100 @@ export default function App() {
     summary: lifetimeWeakSummary,
     topWeakKeys,
   } = useTypingStats();
-  const {
-    streak,
-    recordTestCompleted,
-    dailyChallenge,
-    todayBest,
-    recordDailyBest,
-  } = useStreak();
+  const { streak, recordTestCompleted, recordDailyBest } = useStreak();
   const { totalXP, level, progressInLevel, addXP, xpForNextLevel } = useXPLevel();
 
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
-  }, [theme]);
+  // Mode & language mapping for underlying typing test engine
+  const internalMode = practiceMode === "prose" ? "normal" : "code";
+  const internalCodeLang =
+    practiceMode === "powerscript"
+      ? "powerscript"
+      : practiceMode === "javascript"
+      ? "javascript"
+      : practiceMode === "python"
+      ? "python"
+      : "powerscript";
 
   const test = useTypingTest({
     durationSec,
     difficulty,
     customText,
+    codeLanguageProp: internalCodeLang,
     soundEnabled: sound,
     playKey,
-    mode,
-    codeLangPreference,
+    mode: internalMode,
+    codeLangPreference: internalCodeLang,
   });
+
+  // Load passage directly from Supabase when practice mode or difficulty changes
+  const loadPassageFromSupabase = useCallback(
+    async (modeChoice = practiceMode, diffChoice = difficulty) => {
+      if (modeChoice === "custom") {
+        setShowCustomInput(true);
+        return;
+      }
+      setShowCustomInput(false);
+      setSupabaseLoading(true);
+
+      try {
+        if (modeChoice === "daily") {
+          const daily = await fetchDailyChallengeFromSupabase();
+          if (daily?.text) {
+            setCustomText(daily.text);
+            setSupabaseLoadedSource(`Daily: ${daily.title || daily.dateKey}`);
+            test.loadSnippet(daily.text, "powerscript");
+          }
+        } else if (modeChoice === "prose") {
+          const list = await fetchPassagesFromSupabase({
+            category: "prose",
+            language: "english",
+            difficulty: diffChoice,
+          });
+          if (list && list.length > 0) {
+            const chosen = list[Math.floor(Math.random() * list.length)];
+            setCustomText(chosen.text);
+            setSupabaseLoadedSource(chosen.fromSupabase ? `Supabase: ${chosen.title}` : chosen.title);
+            test.loadSnippet(chosen.text, null);
+          }
+        } else {
+          // Code modes: powerscript, javascript, python
+          const list = await fetchPassagesFromSupabase({
+            category: "code",
+            language: modeChoice,
+            difficulty: diffChoice,
+          });
+          if (list && list.length > 0) {
+            const chosen = list[Math.floor(Math.random() * list.length)];
+            setCustomText(chosen.text);
+            setSupabaseLoadedSource(chosen.fromSupabase ? `Supabase: ${chosen.title}` : chosen.title);
+            test.loadSnippet(chosen.text, modeChoice);
+          }
+        }
+      } catch (err) {
+        console.warn("Failed loading from Supabase:", err);
+      } finally {
+        setSupabaseLoading(false);
+      }
+    },
+    [practiceMode, difficulty, test.loadSnippet]
+  );
+
+  // Initial load from Supabase on mount
+  useEffect(() => {
+    loadPassageFromSupabase(practiceMode, difficulty);
+  }, []);
+
+  const handleModeChange = (newMode) => {
+    if (controlsLocked) return;
+    setPracticeMode(newMode);
+    loadPassageFromSupabase(newMode, difficulty);
+  };
+
+  const handleDifficultyChange = (newDiff) => {
+    if (controlsLocked) return;
+    setDifficulty(newDiff);
+    loadPassageFromSupabase(practiceMode, newDiff);
+  };
 
   useEffect(() => {
     if (test.phase === "idle" || test.phase === "running") {
@@ -73,21 +165,28 @@ export default function App() {
   useEffect(() => {
     if (test.phase !== "finished" || savedFinishRef.current) return;
     savedFinishRef.current = true;
-    saveScore({ wpm: test.wpm, accuracy: test.accuracy, difficulty, mode }).catch(() => undefined);
+    saveScore({
+      wpm: test.wpm,
+      accuracy: test.accuracy,
+      difficulty,
+      mode: internalMode,
+    }).catch(() => undefined);
+
     appendTest({
       wpm: test.wpm,
       accuracy: test.accuracy,
       durationSec,
       difficulty,
-      mode,
+      mode: internalMode,
     });
+
     if (test.sessionMistakes) {
       mergeSessionMistakes(test.sessionMistakes);
     }
     recordTestCompleted();
     addXP(Math.round(test.wpm + test.accuracy));
-    const daily = dailyChallenge.text.trim();
-    if (customText.trim() === daily) {
+
+    if (practiceMode === "daily") {
       recordDailyBest(test.wpm);
     }
   }, [
@@ -97,13 +196,12 @@ export default function App() {
     test.sessionMistakes,
     durationSec,
     difficulty,
-    mode,
+    internalMode,
     appendTest,
     mergeSessionMistakes,
     recordTestCompleted,
     addXP,
-    dailyChallenge.text,
-    customText,
+    practiceMode,
     recordDailyBest,
   ]);
 
@@ -120,7 +218,7 @@ export default function App() {
   const onPracticeWeak = useCallback(() => {
     const keys = topWeakKeys(10).map(([k]) => k);
     if (keys.length === 0) return;
-    setMode("normal");
+    setPracticeMode("prose");
     setCustomText(buildWeakKeyPractice(keys));
     setTimeout(() => test.restart(), 0);
   }, [topWeakKeys, test]);
@@ -133,24 +231,6 @@ export default function App() {
   }, []);
 
   const controlsLocked = test.phase === "running" || test.phase === "finished";
-
-  const onDailyChallenge = useCallback(() => {
-    setMode("normal");
-    setCustomText(dailyChallenge.text);
-    setTimeout(() => test.restart(), 0);
-  }, [dailyChallenge.text, test]);
-
-  const smartHint = useMemo(() => {
-    if (test.phase !== "running" && test.phase !== "finished") {
-      return "Touch any key to initiate live telemetry.";
-    }
-    if (test.accuracy < 90) return "⚠️ Accuracy warning — ease off burst speed and lock in rhythm.";
-    if (test.wpm < 45) return "🔥 Warm-up pace detected — shorten finger strokes to accelerate.";
-    if (test.wpm >= 95 && test.accuracy >= 97) return "⚡ GODSPEED FLOW STATE — absolute cadence, breathing steady!";
-    if (test.wpm >= 75) return "🚀 High velocity rhythm — keep eyes 2-3 words ahead!";
-    return "✨ Good equilibrium. Maintain relaxation and cadence.";
-  }, [test.phase, test.accuracy, test.wpm]);
-
   const weakLine = useMemo(() => weakKeysSentence(test.sessionMistakes), [test.sessionMistakes]);
   const topWeak = useMemo(() => topWeakKeys(6), [topWeakKeys]);
 
@@ -158,267 +238,367 @@ export default function App() {
     <div
       ref={rootRef}
       tabIndex={-1}
-      className="relative min-h-screen overflow-x-hidden text-ink-900 outline-none dark:text-mist-100"
+      className="relative min-h-[calc(100vh-4rem)] text-slate-100 outline-none flex flex-col justify-between"
     >
-      {/* Background Focus Overlay */}
+      {/* Background Focus Zen Dimmer */}
       <motion.div
         aria-hidden
-        className="pointer-events-none absolute inset-0 z-0 bg-black/80"
-        animate={{ opacity: focusMode ? 0.75 : 0 }}
+        className="pointer-events-none fixed inset-0 z-0 bg-black/85"
+        animate={{ opacity: focusMode ? 1 : 0 }}
         transition={{ duration: 0.3 }}
       />
 
-      <main className="relative z-10 w-full pb-16 pt-3">
+      <main className="relative z-10 mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
+        {/* =========================================================================
+            1. FLOATING CONTROL BAR (MONKEYTYPE STYLE - COMPACT & BEAUTIFUL)
+        ========================================================================= */}
         <motion.div
-          className="grid grid-cols-1 gap-7"
-          animate={{
-            gridTemplateColumns:
-              focusMode ? "0px minmax(0,1fr) 0px" : "280px minmax(0,1fr) 310px",
-          }}
-          transition={{ type: "spring", stiffness: 220, damping: 28 }}
+          animate={{ opacity: focusMode ? 0.15 : 1, y: focusMode ? -10 : 0 }}
+          transition={{ duration: 0.2 }}
+          className="mx-auto flex flex-wrap items-center justify-center gap-2 rounded-2xl border border-white/[0.08] bg-[#121620]/90 px-4 py-2.5 shadow-2xl backdrop-blur-2xl"
         >
-          {/* LEFT SIDEBAR */}
-          <motion.aside
-            className="hidden xl:block overflow-hidden"
-            animate={{ opacity: focusMode ? 0 : 1 }}
-            transition={{ duration: 0.22 }}
-            aria-hidden={focusMode}
-          >
-            <div className="sticky top-20 space-y-4">
-              <DailyChallenge
-                challengeText={dailyChallenge.text}
-                dateKey={dailyChallenge.dateKey}
-                bestWpm={todayBest}
-                onUseChallenge={onDailyChallenge}
+          {/* Mode Selector Segment */}
+          <div className="flex flex-wrap items-center gap-1">
+            {PRACTICE_MODES.map((m) => {
+              const active = practiceMode === m.id;
+              const isPB = m.id === "powerscript";
+              const IconComp = m.icon;
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  disabled={controlsLocked}
+                  onClick={() => handleModeChange(m.id)}
+                  className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 font-mono text-xs font-semibold transition-all duration-150 ${
+                    active
+                      ? isPB
+                        ? "bg-amber-400 text-ink-950 shadow-[0_0_14px_rgba(251,191,36,0.5)] font-bold scale-105"
+                        : "bg-accent text-ink-950 shadow-[0_0_12px_rgba(56,189,248,0.4)] font-bold scale-105"
+                      : isPB
+                      ? "text-amber-300/90 hover:bg-amber-400/10 hover:text-amber-200"
+                      : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+                  } ${controlsLocked ? "opacity-40 cursor-not-allowed" : ""}`}
+                >
+                  <IconComp className="h-3.5 w-3.5" />
+                  <span>{m.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="h-4 w-[1px] bg-white/10 hidden sm:block" />
+
+          {/* Time Duration Segment */}
+          <div className="flex items-center gap-1">
+            {DURATIONS.map((d) => (
+              <button
+                key={d}
+                type="button"
                 disabled={controlsLocked}
-              />
+                onClick={() => setDurationSec(d)}
+                className={`rounded-xl px-2.5 py-1.5 font-mono text-xs font-semibold transition-all ${
+                  durationSec === d
+                    ? "bg-white/20 text-white font-bold"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
+                } ${controlsLocked ? "opacity-40 cursor-not-allowed" : ""}`}
+              >
+                {d}s
+              </button>
+            ))}
+          </div>
 
-              <XPProgress
-                level={level}
-                totalXP={totalXP}
-                progressPct={progressInLevel}
-                xpForNextLevel={xpForNextLevel}
-              />
+          <div className="h-4 w-[1px] bg-white/10 hidden sm:block" />
 
-              <div className="flex items-center justify-between rounded-2xl border border-orange-500/30 bg-gradient-to-r from-orange-950/40 via-amber-950/30 to-ink-950 p-3.5 text-xs font-bold text-orange-200 shadow-glass-sm">
-                <span className="flex items-center gap-2">
-                  <span className="text-base">🔥</span> Active Streak
-                </span>
-                <span className="font-mono text-sm text-orange-300">
-                  {streak} {streak === 1 ? "day" : "days"}
-                </span>
-              </div>
-            </div>
-          </motion.aside>
-
-          {/* MAIN TYPING COCKPIT SECTION */}
-          <section className="min-w-0 space-y-5">
-            {/* Top Controls Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3 shadow-glass-sm backdrop-blur-xl">
-              {/* Duration Switcher */}
-              <div className="flex items-center gap-1 rounded-xl bg-ink-950/80 p-1 border border-white/5">
-                {DURATIONS.map((d) => (
-                  <button
-                    key={d}
-                    type="button"
-                    disabled={controlsLocked}
-                    onClick={() => setDurationSec(d)}
-                    className={`rounded-lg px-3 py-1.5 font-mono text-xs font-bold transition-all ${
-                      durationSec === d
-                        ? "bg-accent text-ink-950 shadow-[0_0_12px_rgba(56,189,248,0.5)] scale-105"
-                        : "text-mist-400 hover:text-mist-100 hover:bg-white/5"
-                    } ${controlsLocked ? "opacity-40" : ""}`}
-                  >
-                    {d}s
-                  </button>
-                ))}
-              </div>
-
-              {/* Mode & Difficulty */}
-              <div className="flex flex-wrap items-center gap-2.5">
-                <ModeSelector
-                  value={mode}
-                  onChange={setMode}
-                  disabled={controlsLocked || !!customText.trim()}
-                />
-                <DifficultySelector
-                  value={difficulty}
-                  onChange={setDifficulty}
-                  disabled={controlsLocked || !!customText.trim()}
-                />
-              </div>
-
-              {/* Toggles (Sound & Focus) */}
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setSound((s) => !s)}
-                  className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 font-mono text-xs font-semibold transition ${
-                    sound
-                      ? "border-accent/40 bg-accent/15 text-accent shadow-[0_0_10px_rgba(56,189,248,0.25)]"
-                      : "border-white/10 bg-white/5 text-mist-400 hover:bg-white/10 hover:text-mist-200"
-                  }`}
-                >
-                  <span>{sound ? "🔊 Sound ON" : "🔇 Sound OFF"}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFocusMode((v) => !v)}
-                  className={`rounded-xl border px-3 py-1.5 font-mono text-xs font-semibold transition ${
-                    focusMode
-                      ? "border-fuchsia-500/50 bg-fuchsia-500/20 text-fuchsia-200 shadow-[0_0_12px_rgba(236,72,153,0.3)]"
-                      : "border-white/10 bg-white/5 text-mist-300 hover:bg-white/10"
-                  }`}
-                >
-                  {focusMode ? "✕ Exit Zen" : "⚡ Zen Mode"}
-                </button>
-              </div>
-            </div>
-
-            {/* LIVE TELEMETRY COCKPIT (HUD) */}
-            <LiveTelemetryCockpit
-              wpm={test.wpm}
-              accuracy={test.accuracy}
-              cpm={test.cpm}
-              errors={test.errors}
-              timeLeft={test.phase === "finished" ? 0 : test.timeLeft}
-              totalSec={durationSec}
-              phase={test.phase}
-              typedCount={test.typed.length}
-              correctChars={test.correctChars}
-            />
-
-            {/* Language Selection Filter for Code Mode */}
-            {mode === "code" && (
-              <LanguageSelector
-                value={codeLangPreference}
-                onChange={setCodeLangPreference}
+          {/* Difficulty Segment */}
+          <div className="flex items-center gap-1">
+            {["easy", "medium", "hard"].map((diff) => (
+              <button
+                key={diff}
+                type="button"
                 disabled={controlsLocked}
-              />
-            )}
-
-            {/* ACTIVE TYPING AREA */}
-            <motion.div
-              key={`${mode}-${codeLangPreference}`}
-              layout
-              className={`w-full transition-all duration-300 ${focusMode ? "xl:mx-auto xl:max-w-[1150px]" : ""}`}
-              initial={{ opacity: 0.9, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              {mode === "code" ? (
-                <CodeTypingBox
-                  sourceText={test.sourceText}
-                  typed={test.typed}
-                  phase={test.phase}
-                  language={test.codeLanguage}
-                />
-              ) : (
-                <TypingBox sourceText={test.sourceText} typed={test.typed} phase={test.phase} />
-              )}
-            </motion.div>
-
-            {/* Custom Passage Box */}
-            <div className="rounded-3xl border border-white/10 bg-gradient-to-r from-white/[0.03] to-white/[0.01] p-4 backdrop-blur-xl">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <label
-                      htmlFor="custom"
-                      className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-mist-400"
-                    >
-                      Custom Practice Passage
-                    </label>
-                    {customText && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCustomText("");
-                          setTimeout(() => test.restart(), 0);
-                        }}
-                        className="text-xs text-rose-400 hover:underline"
-                      >
-                        Clear Custom Text
-                      </button>
-                    )}
-                  </div>
-                  <textarea
-                    id="custom"
-                    rows={2}
-                    disabled={test.phase === "running"}
-                    value={customText}
-                    onChange={(e) => setCustomText(e.target.value)}
-                    placeholder="Optional: Paste your own text or PowerScript snippet, then click Apply."
-                    className="mt-2 w-full resize-none rounded-xl border border-white/10 bg-ink-950/70 px-4 py-2.5 font-mono text-sm text-mist-100 outline-none transition placeholder:text-mist-600 focus:border-accent/50 focus:ring-1 focus:ring-accent/20"
-                  />
-                </div>
-                <button
-                  type="button"
-                  disabled={test.phase === "running"}
-                  onClick={() => test.restart()}
-                  className="shrink-0 rounded-2xl bg-gradient-to-r from-accent to-sky-400 px-5 py-3 font-semibold text-ink-950 shadow-glass-sm transition hover:brightness-110 disabled:opacity-50"
-                >
-                  New Passage
-                </button>
-              </div>
-            </div>
-          </section>
-
-          {/* RIGHT SIDEBAR */}
-          <motion.aside
-            className="hidden xl:block overflow-hidden"
-            animate={{ opacity: focusMode ? 0 : 1 }}
-            transition={{ duration: 0.22 }}
-            aria-hidden={focusMode}
-          >
-            <div className="sticky top-20 space-y-4">
-              {/* Live Pace Sparkline */}
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 shadow-glass-sm backdrop-blur-xl">
-                <div className="mb-2 flex items-center justify-between">
-                  <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-accent">
-                    Live Pace Telemetry
-                  </p>
-                  <span className="font-mono text-xs font-bold text-mist-300">
-                    {test.wpm} WPM
-                  </span>
-                </div>
-                <LiveWpmGraph points={test.wpmSeries} />
-              </div>
-
-              {/* Live Coaching Hint */}
-              <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.04] to-transparent p-4 shadow-glass-sm backdrop-blur-xl">
-                <div className="flex items-center gap-2 text-xs font-bold text-mist-200">
-                  <span className="text-base">🤖</span> AI Live Coaching
-                </div>
-                <p className="mt-2 text-xs leading-relaxed text-mist-300">{smartHint}</p>
-              </div>
-
-              {/* Weak Keys Diagnostic */}
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 shadow-glass-sm backdrop-blur-xl">
-                <p className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-amber-300">
-                  Weak Key Radar
-                </p>
-                <WeakKeyStats
-                  sessionMistakes={test.sessionMistakes || {}}
-                  summaryLine={weakLine}
-                  lifetimeLine={lifetimeWeakSummary}
-                />
-                {topWeak.length > 0 ? (
-                  <button
-                    type="button"
-                    onClick={onPracticeWeak}
-                    className="mt-3 w-full rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 font-mono text-xs font-bold text-amber-200 transition hover:bg-amber-500/20"
-                  >
-                    Drill Weak Keys Now
-                  </button>
-                ) : null}
-              </div>
-            </div>
-          </motion.aside>
+                onClick={() => handleDifficultyChange(diff)}
+                className={`rounded-xl px-2.5 py-1.5 font-mono text-xs font-semibold capitalize transition-all ${
+                  difficulty === diff
+                    ? "bg-white/20 text-white font-bold"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
+                } ${controlsLocked ? "opacity-40 cursor-not-allowed" : ""}`}
+              >
+                {diff}
+              </button>
+            ))}
+          </div>
         </motion.div>
+
+        {/* Live Supabase Source Indicator Pill */}
+        <div className="mt-4 flex items-center justify-center gap-2">
+          <span className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 font-mono text-[11px] font-semibold text-emerald-300 shadow-[0_0_12px_rgba(52,211,153,0.15)]">
+            <Database className="h-3 w-3 text-emerald-400" />
+            <span>Supabase Synced</span>
+          </span>
+          {supabaseLoadedSource && (
+            <span className="font-mono text-[11px] text-slate-400 truncate max-w-xs sm:max-w-md">
+              · {supabaseLoadedSource}
+            </span>
+          )}
+          {supabaseLoading && (
+            <span className="font-mono text-[11px] text-accent animate-pulse">
+              (Syncing...)
+            </span>
+          )}
+        </div>
+
+        {/* =========================================================================
+            2. MINIMALIST LIVE TELEMETRY (CLEAN, PROPER, FOCUSED)
+        ========================================================================= */}
+        <div className="my-8 flex items-baseline justify-between px-2">
+          {/* Live WPM Speedometer Display */}
+          <div className="flex items-baseline gap-2">
+            <span
+              className={`font-mono text-6xl font-black tracking-tighter tabular-nums transition-colors duration-150 sm:text-7xl ${
+                test.phase === "running" ? "text-accent drop-shadow-[0_0_24px_rgba(56,189,248,0.4)]" : "text-slate-600"
+              }`}
+            >
+              {test.wpm}
+            </span>
+            <span className="font-mono text-xs font-bold uppercase tracking-widest text-slate-500">
+              WPM
+            </span>
+          </div>
+
+          {/* Center Cadence & Accuracy */}
+          <div className="flex items-center gap-4 font-mono text-sm">
+            <div className="flex flex-col items-center">
+              <span className="text-[10px] uppercase tracking-widest text-slate-500">Accuracy</span>
+              <span
+                className={`font-bold tabular-nums text-lg ${
+                  test.accuracy >= 97
+                    ? "text-emerald-400"
+                    : test.accuracy >= 92
+                    ? "text-cyan-400"
+                    : "text-amber-400"
+                }`}
+              >
+                {test.accuracy}%
+              </span>
+            </div>
+
+            <div className="h-6 w-[1px] bg-white/10" />
+
+            <div className="flex flex-col items-center">
+              <span className="text-[10px] uppercase tracking-widest text-slate-500">Errors</span>
+              <span
+                className={`font-bold tabular-nums text-lg ${
+                  test.errors > 0 ? "text-rose-400 animate-bounce" : "text-slate-400"
+                }`}
+              >
+                {test.errors}
+              </span>
+            </div>
+
+            <div className="h-6 w-[1px] bg-white/10" />
+
+            <div className="flex flex-col items-center">
+              <span className="text-[10px] uppercase tracking-widest text-slate-500">CPM</span>
+              <span className="font-bold tabular-nums text-lg text-slate-300">
+                {test.cpm}
+              </span>
+            </div>
+          </div>
+
+          {/* Time Remaining Countdown Display */}
+          <div className="flex items-baseline gap-1.5 font-mono">
+            <span
+              className={`text-4xl font-extrabold tabular-nums sm:text-5xl ${
+                test.timeLeft <= 5 && test.phase === "running"
+                  ? "text-rose-400 animate-pulse"
+                  : "text-slate-200"
+              }`}
+            >
+              {test.phase === "finished" ? 0 : test.timeLeft}
+            </span>
+            <span className="text-xs font-semibold uppercase text-slate-500">s</span>
+          </div>
+        </div>
+
+        {/* =========================================================================
+            3. MAIN TYPING ARENA (HERO DISPLAY - FLUID & CENTERED)
+        ========================================================================= */}
+        <div className="relative">
+          {internalMode === "code" ? (
+            <CodeTypingBox
+              sourceText={test.sourceText}
+              typed={test.typed}
+              phase={test.phase}
+              language={test.codeLanguage}
+            />
+          ) : (
+            <TypingBox
+              sourceText={test.sourceText}
+              typed={test.typed}
+              phase={test.phase}
+            />
+          )}
+        </div>
+
+        {/* =========================================================================
+            4. QUICK SHORTCUTS & ACTION BAR (BOTTOM OF TEST)
+        ========================================================================= */}
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-4 font-mono text-xs text-slate-400">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => test.restart()}
+              className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 hover:bg-white/10 hover:text-white transition"
+            >
+              <RotateCcw className="h-3 w-3 text-accent" />
+              <kbd className="text-[10px] font-bold text-accent">Tab</kbd>
+              <span>Restart Run</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => loadPassageFromSupabase(practiceMode, difficulty)}
+              className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 hover:bg-white/10 hover:text-white transition"
+            >
+              <Shuffle className="h-3 w-3 text-emerald-400" />
+              <kbd className="text-[10px] font-bold text-emerald-400">Alt+R</kbd>
+              <span>New Snippet</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSound((s) => !s)}
+              className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 transition ${
+                sound
+                  ? "border-accent/40 bg-accent/15 text-accent"
+                  : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-white"
+              }`}
+            >
+              {sound ? (
+                <>
+                  <Volume2 className="h-3.5 w-3.5" />
+                  <span>Sound ON</span>
+                </>
+              ) : (
+                <>
+                  <VolumeX className="h-3.5 w-3.5" />
+                  <span>Sound OFF</span>
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setFocusMode((f) => !f)}
+              className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 transition ${
+                focusMode
+                  ? "border-amber-500/40 bg-amber-500/20 text-amber-200"
+                  : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-white"
+              }`}
+            >
+              {focusMode ? (
+                <>
+                  <Minimize2 className="h-3.5 w-3.5" />
+                  <span>Exit Zen</span>
+                </>
+              ) : (
+                <>
+                  <Maximize2 className="h-3.5 w-3.5" />
+                  <span>Focus Mode</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Custom Passage Input Drawer */}
+        <AnimatePresence>
+          {showCustomInput && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mt-6 rounded-3xl border border-white/10 bg-[#121620] p-5 shadow-2xl"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-mono text-xs font-semibold text-accent uppercase">
+                  Custom Practice Input
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowCustomInput(false)}
+                  className="font-mono text-xs text-slate-400 hover:text-white"
+                >
+                  ✕ Close
+                </button>
+              </div>
+              <textarea
+                rows={3}
+                value={customText}
+                onChange={(e) => setCustomText(e.target.value)}
+                placeholder="Paste any custom PowerScript, code, or article snippet here..."
+                className="w-full resize-none rounded-xl border border-white/10 bg-[#0b0e14] p-3 font-mono text-sm text-white outline-none focus:border-accent"
+              />
+              <div className="mt-3 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => test.restart()}
+                  className="rounded-xl bg-accent px-5 py-2 font-mono text-xs font-bold text-ink-950 hover:brightness-110"
+                >
+                  Apply & Start Typing
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* =========================================================================
+            5. SUMMARY TILES (SUBTLE, EXPANDED ON DEMAND)
+        ========================================================================= */}
+        <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-2">
+          {/* Live Pace Progression Chart */}
+          <div className="rounded-3xl border border-white/[0.08] bg-[#121620]/60 p-5 shadow-glass-sm backdrop-blur-xl">
+            <div className="flex items-center justify-between mb-3">
+              <span className="font-mono text-xs font-bold uppercase tracking-wider text-slate-400">
+                Pace Graph (Live WPM)
+              </span>
+              <span className="font-mono text-xs text-accent">{test.wpm} WPM</span>
+            </div>
+            <div className="h-36 w-full">
+              <LiveWpmGraph points={test.wpmSeries} />
+            </div>
+          </div>
+
+          {/* Weak Keys & Quick Drill */}
+          <div className="rounded-3xl border border-white/[0.08] bg-[#121620]/60 p-5 shadow-glass-sm backdrop-blur-xl flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-mono text-xs font-bold uppercase tracking-wider text-amber-300">
+                  Weak Key Radar
+                </span>
+                <span className="font-mono text-[11px] text-slate-500">Auto-detected</span>
+              </div>
+              <WeakKeyStats
+                sessionMistakes={test.sessionMistakes || {}}
+                summaryLine={weakLine}
+                lifetimeLine={lifetimeWeakSummary}
+              />
+            </div>
+            {topWeak.length > 0 && (
+              <button
+                type="button"
+                onClick={onPracticeWeak}
+                className="mt-4 w-full rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 font-mono text-xs font-bold text-amber-200 transition hover:bg-amber-500/20"
+              >
+                ⚡ Drill Weak Keys Now
+              </button>
+            )}
+          </div>
+        </div>
       </main>
 
-      {/* SESSION COMPLETE RESULT MODAL */}
+      {/* RESULT MODAL UPON FINISH */}
       <ResultModal
         open={modalOpen}
         onClose={onCloseModal}
